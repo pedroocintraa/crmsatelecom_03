@@ -1,0 +1,13 @@
+project_id = "leyeltbhwuxssawmhqcb"
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.secure-file-upload]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.create-admin]
+verify_jwt = false

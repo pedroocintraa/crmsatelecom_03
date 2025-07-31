@@ -2,70 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fiber ISP Modern Design System - Tech-inspired colors and gradients */
+/* Sistema de Design CRM - Todas as cores, gradientes e estilos centralizados */
 
 @layer base {
   :root {
-    /* Base colors - Clean tech aesthetic */
-    --background: 0 0% 100%;
-    --foreground: 215 25% 12%;
+    /* Cores principais - tema corporativo */
+    --background: 240 10% 98%;
+    --foreground: 222 84% 4.9%;
 
-    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 12%;
+    --card-foreground: 222 84% 4.9%;
 
-    /* Popover system */
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 12%;
+    --popover-foreground: 222 84% 4.9%;
 
-    /* Primary brand - Tech blue */
-    --primary: 214 84% 56%;
-    --primary-foreground: 0 0% 100%;
-    --primary-dark: 214 84% 46%;
-    --primary-light: 214 84% 66%;
+    /* Azul corporativo SA TELECOM */
+    --primary: 220 91% 42%; /* #0D4BCB */
+    --primary-foreground: 0 0% 98%;
+    --primary-light: 220 91% 93%;
 
-    /* Secondary - Clean gray */
-    --secondary: 215 15% 96%;
-    --secondary-foreground: 215 25% 15%;
+    /* Cinza secundário */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    /* Muted tones */
-    --muted: 215 15% 96%;
-    --muted-foreground: 215 15% 46%;
+    /* Verde para status de sucesso */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    --success-light: 142 76% 95%;
 
-    /* Accent - Vibrant purple for CTAs */
-    --accent: 266 83% 58%;
-    --accent-foreground: 0 0% 100%;
-    --accent-hover: 266 83% 52%;
+    /* Laranja para alertas */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+    --warning-light: 38 92% 95%;
 
-    /* Destructive */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 220 91% 42%; /* SA TELECOM primary */
+    --accent-foreground: 0 0% 98%;
+
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 98%;
 
-    /* Borders and inputs */
-    --border: 215 15% 90%;
-    --input: 215 15% 90%;
-    --ring: 214 84% 56%;
-
-    /* Gradients for modern tech feel */
-    --gradient-primary: linear-gradient(135deg, hsl(214 84% 56%), hsl(266 83% 58%));
-    --gradient-hero: linear-gradient(135deg, hsl(214 100% 97%), hsl(266 100% 97%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(215 15% 98%));
-    
-    /* Speed/connectivity themed gradients */
-    --gradient-speed: linear-gradient(90deg, hsl(214 84% 56%), hsl(195 100% 50%), hsl(266 83% 58%));
-    --gradient-fiber: linear-gradient(135deg, hsl(214 84% 56%) 0%, hsl(195 100% 50%) 50%, hsl(266 83% 58%) 100%);
-    
-    /* Shadows for depth */
-    --shadow-soft: 0 2px 8px hsl(215 25% 12% / 0.06);
-    --shadow-medium: 0 4px 16px hsl(215 25% 12% / 0.1);
-    --shadow-strong: 0 8px 32px hsl(215 25% 12% / 0.15);
-    --shadow-glow: 0 0 32px hsl(214 84% 56% / 0.3);
-
-    /* Animation variables */
-    --animation-speed: 0.3s;
-    --animation-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 220 91% 42%; /* SA TELECOM primary */
 
     --radius: 0.75rem;
+
+    /* Gradientes corporativos SA TELECOM */
+    --gradient-primary: linear-gradient(135deg, hsl(220 91% 42%), hsl(220 91% 25%)); /* #0D4BCB para #042C7E */
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(142 76% 30%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 98%));
+
+    /* Sombras elegantes */
+    --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-primary: 0 10px 25px -5px hsl(var(--primary) / 0.3);
+
+    /* Animações suaves */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s ease-out;
 
     --sidebar-background: 0 0% 98%;
 
@@ -129,101 +126,6 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-  }
-}
-
-/* Custom component classes */
-@layer components {
-  /* Hero section styling */
-  .hero-gradient {
-    background: var(--gradient-hero);
-  }
-  
-  .speed-gradient {
-    background: var(--gradient-speed);
-    background-size: 200% 100%;
-    animation: gradient-flow 3s ease-in-out infinite;
-  }
-  
-  .fiber-gradient {
-    background: var(--gradient-fiber);
-  }
-  
-  .card-gradient {
-    background: var(--gradient-card);
-  }
-  
-  /* Animations */
-  .animate-fade-up {
-    animation: fade-up 0.6s var(--animation-smooth) forwards;
-  }
-  
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-  
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  /* Interactive elements */
-  .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg;
-  }
-  
-  .btn-accent {
-    @apply bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105;
-  }
-  
-  .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold px-6 py-3 rounded-lg transition-all duration-300;
-  }
-  
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg;
-  }
-  
-  .tech-card {
-    @apply bg-gradient-to-br from-white to-secondary/30 border border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
-  }
-}
-
-/* Keyframes for animations */
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px hsl(214 84% 56% / 0.3);
-  }
-  50% {
-    box-shadow: 0 0 40px hsl(214 84% 56% / 0.5);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes gradient-flow {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
+    @apply bg-background text-foreground;
   }
 }
