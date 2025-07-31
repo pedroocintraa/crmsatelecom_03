@@ -67,14 +67,10 @@ export default function Login() {
   return <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-2xl space-y-6">
         {/* Painel de Migração */}
-        {showMigrationPanel && (
-          <MigrationPanel />
-        )}
+        {showMigrationPanel && <MigrationPanel />}
         
         {/* Painel de Debug de Autenticação */}
-        {showDebugPanel && (
-          <AuthDebugPanel />
-        )}
+        {showDebugPanel && <AuthDebugPanel />}
         
         <Card className="w-full max-w-md mx-auto">
         <CardHeader className="text-center">
@@ -89,30 +85,7 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Botões de Debug e Migração */}
-            {!showMigrationPanel && !showDebugPanel && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="flex items-center justify-between">
-                  <span>Problemas com login? Ferramentas de diagnóstico:</span>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setShowDebugPanel(true)}
-                    >
-                      Debug Auth
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setShowMigrationPanel(true)}
-                    >
-                      Migração
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
+            {!showMigrationPanel && !showDebugPanel}
 
             {error && <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
