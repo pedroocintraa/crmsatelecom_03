@@ -210,7 +210,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({ venda, onStatusCha
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 w-full">
         {actions.map((action) => {
           const getIcon = () => {
             switch (action.icon) {
@@ -235,7 +235,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({ venda, onStatusCha
                 action.needsReason, 
                 action.needsInstallDate
               )}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full"
               title={action.description}
             >
               {getIcon()}

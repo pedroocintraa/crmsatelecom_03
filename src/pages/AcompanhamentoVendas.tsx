@@ -602,24 +602,29 @@ const AcompanhamentoVendas = () => {
                   </div>
 
                   {/* Ações */}
-                  <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
+                  <div className="flex flex-col gap-2 lg:w-80 lg:flex-shrink-0">
                     {/* Botão Ver Detalhes - Principal */}
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate(`/venda/${venda.id}`)}
-                      className="lg:min-w-[140px]"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalhes
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(`/venda/${venda.id}`)}
+                        className="flex-1 lg:min-w-[140px]"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver Detalhes
+                      </Button>
+                    </div>
                     
-                     <StatusManager
-                      venda={venda}
-                      onStatusChange={(newStatus, extraData) => 
-                        handleAtualizarStatus(venda.id, newStatus, extraData)
-                      }
-                      showLostOption={false}
-                    />
+                    {/* Status Manager */}
+                    <div className="w-full">
+                      <StatusManager
+                        venda={venda}
+                        onStatusChange={(newStatus, extraData) => 
+                          handleAtualizarStatus(venda.id, newStatus, extraData)
+                        }
+                        showLostOption={false}
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>
