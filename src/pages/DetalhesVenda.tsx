@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { Venda } from "@/types/venda";
+import { Plano } from "@/types/configuracao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,8 @@ const DetalhesVenda = () => {
   const [planoEditado, setPlanoEditado] = useState<string>('');
   const [vencimentoEditado, setVencimentoEditado] = useState<number | undefined>(undefined);
   const [salvando, setSalvando] = useState(false);
+  const [planos, setPlanos] = useState<Plano[]>([]);
+  const [carregandoPlanos, setCarregandoPlanos] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -203,10 +206,33 @@ const DetalhesVenda = () => {
     }
   };
 
-  const iniciarEdicaoVenda = () => {
+  const carregarPlanos = async () => {
+    if (planos.length > 0) return; // Já carregados
+    
+    setCarregandoPlanos(true);
+    try {
+      const { configuracaoService } = await import('@/services/configuracaoService');
+      const planosAtivos = await configuracaoService.obterPlanosAtivos();
+      setPlanos(planosAtivos);
+    } catch (error) {
+      console.error("Erro ao carregar planos:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar planos disponíveis",
+        variant: "destructive",
+      });
+    } finally {
+      setCarregandoPlanos(false);
+    }
+  };
+
+  const iniciarEdicaoVenda = async () => {
     setPlanoEditado(venda?.planoNome || '');
     setVencimentoEditado(venda?.diaVencimento);
     setEditandoVenda(true);
+    
+    // Carregar planos quando iniciar edição
+    await carregarPlanos();
   };
 
   const salvarVenda = async () => {
@@ -563,25 +589,28 @@ const DetalhesVenda = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate("/acompanhamento")}>
+      <div className="space-y-4">
+        {/* Botão Voltar e Título */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/acompanhamento")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Detalhes da Venda</h1>
-            <p className="text-muted-foreground">
-              Venda #{venda.id} - {getStatusLabel(venda.status)}
-            </p>
-          </div>
         </div>
         
-        <div className="flex gap-2">
-
-          <Button variant="outline" onClick={exportarDadosVenda}>
+        {/* Título e Status */}
+        <div className="space-y-2">
+          <h1 className="text-xl md:text-2xl font-bold">Detalhes da Venda</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Venda #{venda.id} - {getStatusLabel(venda.status)}
+          </p>
+        </div>
+        
+        {/* Botão Exportar */}
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={exportarDadosVenda}>
             <FileText className="h-4 w-4 mr-2" />
             Exportar Dados
           </Button>
@@ -589,23 +618,23 @@ const DetalhesVenda = () => {
       </div>
 
       {/* Status e Info Básica */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
           {/* Informações do Cliente */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+            <CardHeader className="pb-4">
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <User className="h-4 w-4 md:h-5 md:w-5" />
                   Dados do Cliente
-                </div>
+                </CardTitle>
                 {!editandoCliente ? (
-                  <Button variant="outline" size="sm" onClick={iniciarEdicaoCliente}>
+                  <Button variant="outline" size="sm" onClick={iniciarEdicaoCliente} className="self-start sm:self-auto">
                     <Edit3 className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 self-start sm:self-auto">
                     <Button variant="outline" size="sm" onClick={cancelarEdicao} disabled={salvando}>
                       <X className="h-4 w-4 mr-2" />
                       Cancelar
@@ -616,7 +645,7 @@ const DetalhesVenda = () => {
                     </Button>
                   </div>
                 )}
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {!editandoCliente ? (
@@ -712,19 +741,19 @@ const DetalhesVenda = () => {
 
           {/* Endereço */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
+            <CardHeader className="pb-4">
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <MapPin className="h-4 w-4 md:h-5 md:w-5" />
                   Endereço
-                </div>
+                </CardTitle>
                 {!editandoEndereco ? (
-                  <Button variant="outline" size="sm" onClick={iniciarEdicaoEndereco}>
+                  <Button variant="outline" size="sm" onClick={iniciarEdicaoEndereco} className="self-start sm:self-auto">
                     <Edit3 className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 self-start sm:self-auto">
                     <Button variant="outline" size="sm" onClick={cancelarEdicao} disabled={salvando}>
                       <X className="h-4 w-4 mr-2" />
                       Cancelar
@@ -735,7 +764,7 @@ const DetalhesVenda = () => {
                     </Button>
                   </div>
                 )}
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {!editandoEndereco ? (
@@ -845,25 +874,27 @@ const DetalhesVenda = () => {
 
           {/* Informações da Venda */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Informações da Venda</CardTitle>
-              {!editandoVenda ? (
-                <Button variant="outline" size="sm" onClick={iniciarEdicaoVenda}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={salvarVenda} disabled={salvando}>
-                    <Save className="h-4 w-4 mr-1" />
-                    Salvar
+            <CardHeader className="pb-4">
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <CardTitle className="text-base md:text-lg">Informações da Venda</CardTitle>
+                {!editandoVenda ? (
+                  <Button variant="outline" size="sm" onClick={iniciarEdicaoVenda} className="self-start sm:self-auto">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
                   </Button>
-                  <Button variant="outline" size="sm" onClick={cancelarEdicao} disabled={salvando}>
-                    <X className="h-4 w-4 mr-1" />
-                    Cancelar
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="flex gap-2 self-start sm:self-auto">
+                    <Button size="sm" onClick={salvarVenda} disabled={salvando}>
+                      <Save className="h-4 w-4 mr-1" />
+                      Salvar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={cancelarEdicao} disabled={salvando}>
+                      <X className="h-4 w-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -872,12 +903,28 @@ const DetalhesVenda = () => {
                   {!editandoVenda ? (
                     <p className="font-medium">{venda.planoNome || 'Não informado'}</p>
                   ) : (
-                    <Input
-                      id="plano"
+                    <Select
                       value={planoEditado}
-                      onChange={(e) => setPlanoEditado(e.target.value)}
-                      placeholder="Nome do plano"
-                    />
+                      onValueChange={setPlanoEditado}
+                      disabled={carregandoPlanos}
+                    >
+                      <SelectTrigger id="plano">
+                        <SelectValue placeholder={carregandoPlanos ? "Carregando planos..." : "Selecione um plano"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planos.map((plano) => (
+                          <SelectItem key={plano.id} value={plano.nome}>
+                            {plano.nome}
+                            {plano.valor && ` - R$ ${plano.valor.toFixed(2)}`}
+                          </SelectItem>
+                        ))}
+                        {planos.length === 0 && !carregandoPlanos && (
+                          <SelectItem value="" disabled>
+                            Nenhum plano disponível
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
                 <div>
