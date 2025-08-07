@@ -3,6 +3,46 @@ import { realtimeDb } from '@/lib/firebase';
 import { Venda, VendaFormData, DocumentosVenda } from '@/types/venda';
 
 export class FirebaseVendasService {
+  
+  async criarIndicesRetroativos(): Promise<void> {
+    try {
+      console.log('🔧 Criando índices retroativos para vendas existentes...');
+      
+      const vendasRef = ref(realtimeDb, 'vendas');
+      const snapshot = await get(vendasRef);
+      
+      if (!snapshot.exists()) {
+        console.log('📭 Nenhuma venda encontrada');
+        return;
+      }
+      
+      const vendasData = snapshot.val();
+      const vendas = Object.values(vendasData) as Venda[];
+      
+      const updates: any = {};
+      let countIndices = 0;
+      
+      for (const venda of vendas) {
+        if (venda.cliente?.cpf) {
+          const cpfNormalizado = this.normalizarCpf(venda.cliente.cpf);
+          if (cpfNormalizado && cpfNormalizado.length === 11) {
+            updates[`indices/cpf/${cpfNormalizado}`] = venda.id;
+            countIndices++;
+          }
+        }
+      }
+      
+      if (countIndices > 0) {
+        await update(ref(realtimeDb), updates);
+        console.log(`✅ ${countIndices} índices de CPF criados retroativamente`);
+      } else {
+        console.log('📋 Nenhum índice retroativo necessário');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao criar índices retroativos:', error);
+    }
+  }
   async obterVendas(): Promise<Venda[]> {
     try {
       const vendasRef = ref(realtimeDb, 'vendas');
@@ -72,8 +112,96 @@ export class FirebaseVendasService {
     }
   }
 
+  private normalizarCpf(cpf: string): string {
+    // Remove todos os caracteres não numéricos
+    return cpf.replace(/\D/g, '');
+  }
+
+  async verificarCpfDuplicado(cpf: string): Promise<boolean> {
+    try {
+      console.log(`🔍 Verificando CPF duplicado: ${cpf}`);
+      
+      // Normalizar CPF (remover formatação)
+      const cpfNormalizado = this.normalizarCpf(cpf);
+      console.log(`🔍 CPF normalizado: ${cpfNormalizado}`);
+      
+      if (!cpfNormalizado || cpfNormalizado.length !== 11) {
+        console.log('❌ CPF inválido para verificação');
+        return false;
+      }
+
+      // Primeiro: verificar no índice de CPF (mais rápido)
+      const indiceRef = ref(realtimeDb, `indices/cpf/${cpfNormalizado}`);
+      const indiceSnapshot = await get(indiceRef);
+      
+      if (indiceSnapshot.exists()) {
+        const vendaId = indiceSnapshot.val();
+        console.log(`🎯 CPF encontrado no índice! Venda ID: ${vendaId}`);
+        return true;
+      }
+
+      // Segundo: verificar nas vendas diretamente (fallback para vendas antigas)
+      const vendasRef = ref(realtimeDb, 'vendas');
+      const snapshot = await get(vendasRef);
+      
+      if (snapshot.exists()) {
+        const vendasData = snapshot.val();
+        const vendas = Object.values(vendasData) as Venda[];
+        
+        console.log(`📊 Total de vendas para verificar: ${vendas.length}`);
+        
+        // Verificar se existe alguma venda com o mesmo CPF (normalizado)
+        const vendaExistente = vendas.find((v: Venda) => {
+          const cpfVendaExistente = this.normalizarCpf(v.cliente?.cpf || '');
+          const match = cpfVendaExistente === cpfNormalizado;
+          
+          if (match) {
+            console.log(`🎯 Match encontrado! Venda: ${v.id}, CPF existente: ${v.cliente?.cpf}, CPF verificado: ${cpf}`);
+          }
+          
+          return match;
+        });
+        
+        if (vendaExistente) {
+          console.log(`⚠️ CPF ${cpf} já possui venda cadastrada:`, vendaExistente.id);
+          console.log(`📝 Dados da venda existente:`, {
+            id: vendaExistente.id,
+            cliente: vendaExistente.cliente?.nome,
+            cpf: vendaExistente.cliente?.cpf,
+            vendedor: vendaExistente.vendedorNome,
+            status: vendaExistente.status,
+            dataVenda: vendaExistente.dataVenda
+          });
+          
+          // Criar índice para essa venda existente
+          try {
+            await set(ref(realtimeDb, `indices/cpf/${cpfNormalizado}`), vendaExistente.id);
+            console.log(`🔗 Índice de CPF criado retroativamente para venda ${vendaExistente.id}`);
+          } catch (indexError) {
+            console.warn('⚠️ Erro ao criar índice retroativo:', indexError);
+          }
+          
+          return true;
+        }
+      }
+      
+      console.log(`✅ CPF ${cpf} não encontrado nas vendas existentes`);
+      return false;
+    } catch (error) {
+      console.error('❌ Erro ao verificar CPF duplicado:', error);
+      // Em caso de erro, NÃO permitir cadastro por segurança
+      throw new Error('Erro ao verificar duplicação de CPF. Tente novamente.');
+    }
+  }
+
   async criarVenda(venda: VendaFormData, vendedorId: string, vendedorNome: string, equipeId?: string, equipeNome?: string): Promise<Venda> {
     try {
+      // Verificar se já existe uma venda com o mesmo CPF
+      const cpfJaExiste = await this.verificarCpfDuplicado(venda.cliente.cpf);
+      if (cpfJaExiste) {
+        throw new Error(`Já existe uma venda cadastrada para o CPF ${venda.cliente.cpf}`);
+      }
+
       // Processar documentos se existirem
       let documentosProcessados = undefined;
       if (venda.documentos) {
@@ -90,9 +218,19 @@ export class FirebaseVendasService {
         Object.entries(venda).filter(([_, value]) => value !== undefined)
       ) as VendaFormData;
 
+      // Verificação final antes de salvar (evitar condição de corrida)
+      console.log('🔒 Verificação final de CPF antes de salvar...');
+      const cpfJaExisteFinal = await this.verificarCpfDuplicado(venda.cliente.cpf);
+      if (cpfJaExisteFinal) {
+        throw new Error(`Já existe uma venda cadastrada para o CPF ${venda.cliente.cpf} (verificação final)`);
+      }
+
+      const vendaId = Date.now().toString();
+      const cpfNormalizado = this.normalizarCpf(venda.cliente.cpf);
+
       const novaVenda: Venda = {
         ...vendaLimpa,
-        id: Date.now().toString(),
+        id: vendaId,
         dataVenda: new Date().toISOString(),
         status: "pendente",
         vendedorId: vendedorId,
@@ -102,8 +240,16 @@ export class FirebaseVendasService {
         documentos: documentosProcessados
       };
 
-      await set(ref(realtimeDb, `vendas/${novaVenda.id}`), novaVenda);
+      // Salvar venda e índice de CPF atomicamente
+      const updates: any = {};
+      updates[`vendas/${vendaId}`] = novaVenda;
+      updates[`indices/cpf/${cpfNormalizado}`] = vendaId; // Índice para prevenir duplicatas
+
+      // Usar update para operação atômica
+      await update(ref(realtimeDb), updates);
+      
       console.log('✅ Venda criada com sucesso:', novaVenda.id);
+      console.log('🔗 Índice de CPF criado:', cpfNormalizado);
       return novaVenda;
     } catch (error) {
       console.error('Erro ao criar venda:', error);
@@ -348,7 +494,7 @@ export class FirebaseVendasService {
       const estatisticas = {
         total: vendas.length,
         pendentes: vendas.filter(v => v.status === 'pendente').length,
-        emAndamento: vendas.filter(v => v.status === 'em_andamento').length,
+        emAndamento: vendas.filter(v => v.status === 'em_atendimento').length,
         auditadas: vendas.filter(v => v.status === 'auditada').length,
         geradas: vendas.filter(v => v.status === 'gerada').length,
         habilitadas: vendas.filter(v => v.status === 'habilitada').length,

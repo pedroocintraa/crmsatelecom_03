@@ -36,15 +36,43 @@ const CadastroVenda = () => {
   const [planoNome, setPlanoNome] = useState<string>("");
   const [diaVencimento, setDiaVencimento] = useState<string>("");
   const [isLoadingConfiguracoes, setIsLoadingConfiguracoes] = useState(true);
+  const [cpfDuplicado, setCpfDuplicado] = useState(false);
+  const [validandoCpf, setValidandoCpf] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { usuario } = useAuth();
 
   const cepValue = watch("cliente.endereco.cep");
+  const cpfValue = watch("cliente.cpf");
 
   useEffect(() => {
     carregarConfiguracoes();
   }, []);
+
+  // Validar CPF em tempo real
+  useEffect(() => {
+    const validarCpfRealTime = async () => {
+      if (!cpfValue || cpfValue.length < 14) { // CPF completo tem 14 caracteres com formatação
+        setCpfDuplicado(false);
+        return;
+      }
+
+      setValidandoCpf(true);
+      try {
+        const { vendasService } = await import('@/services/vendasService');
+        const isDuplicado = await vendasService.verificarCpfDuplicado(cpfValue);
+        setCpfDuplicado(isDuplicado);
+      } catch (error) {
+        console.error('Erro ao validar CPF:', error);
+        setCpfDuplicado(false);
+      } finally {
+        setValidandoCpf(false);
+      }
+    };
+
+    const timeoutId = setTimeout(validarCpfRealTime, 500); // Debounce de 500ms
+    return () => clearTimeout(timeoutId);
+  }, [cpfValue]);
 
   const carregarConfiguracoes = async () => {
     try {
@@ -131,6 +159,16 @@ const CadastroVenda = () => {
       return;
     }
 
+    // Validar CPF duplicado
+    if (cpfDuplicado) {
+      toast({
+        title: "CPF já cadastrado",
+        description: "Já existe uma venda cadastrada para este CPF",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Mostrar loading
     const loadingToast = toast({
       title: "Processando...",
@@ -200,17 +238,26 @@ const CadastroVenda = () => {
       // Redirecionar imediatamente para a página de acompanhamento de vendas
       navigate('/acompanhamento');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao cadastrar venda:", error);
       
       // Fechar toast de loading
       loadingToast.dismiss();
       
-      toast({
-        variant: "destructive",
-        title: "Erro ao cadastrar",
-        description: "Não foi possível cadastrar a venda. Tente novamente.",
-      });
+      // Verificar se é erro de CPF duplicado
+      if (error.message && error.message.includes('Já existe uma venda cadastrada para o CPF')) {
+        toast({
+          variant: "destructive",
+          title: "CPF já cadastrado",
+          description: error.message,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao cadastrar",
+          description: "Não foi possível cadastrar a venda. Tente novamente.",
+        });
+      }
     }
   };
 
@@ -271,13 +318,25 @@ const CadastroVenda = () => {
 
               <div>
                 <Label htmlFor="cpf">CPF *</Label>
-                <Input
-                  id="cpf"
-                  {...register("cliente.cpf", { required: "CPF é obrigatório" })}
-                  placeholder="000.000.000-00"
-                />
+                <div className="relative">
+                  <Input
+                    id="cpf"
+                    {...register("cliente.cpf", { required: "CPF é obrigatório" })}
+                    placeholder="000.000.000-00"
+                    className={`${cpfDuplicado ? 'border-destructive focus:border-destructive' : ''}`}
+                  />
+                  {validandoCpf && (
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
+                  )}
+                  {cpfDuplicado && !validandoCpf && (
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-destructive text-sm">⚠️</span>
+                  )}
+                </div>
                 {errors.cliente?.cpf && (
                   <span className="text-sm text-destructive">{errors.cliente.cpf.message}</span>
+                )}
+                {cpfDuplicado && !validandoCpf && (
+                  <span className="text-sm text-destructive">Este CPF já possui uma venda cadastrada</span>
                 )}
               </div>
 

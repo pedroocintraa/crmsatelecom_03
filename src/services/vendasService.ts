@@ -19,6 +19,14 @@ export class VendasService {
     return firebaseVendasService.obterVendaPorId(id);
   }
 
+  async verificarCpfDuplicado(cpf: string): Promise<boolean> {
+    return firebaseVendasService.verificarCpfDuplicado(cpf);
+  }
+
+  async criarIndicesRetroativos(): Promise<void> {
+    return firebaseVendasService.criarIndicesRetroativos();
+  }
+
   async criarVenda(venda: VendaFormData, vendedorId: string, vendedorNome: string, equipeId?: string, equipeNome?: string): Promise<Venda> {
     return firebaseVendasService.criarVenda(venda, vendedorId, vendedorNome, equipeId, equipeNome);
   }

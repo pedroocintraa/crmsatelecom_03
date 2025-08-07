@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "vendas": {
+      ".read": "auth != null",
+      "$vendaId": {
+        ".write": "auth != null && (
+          !data.exists() || 
+          auth.uid == data.child('vendedorId').val()
+        )",
+        ".validate": "newData.hasChildren(['cliente', 'vendedorId', 'status'])"
+      }
+    },
+    "indices": {
+      "cpf": {
+        ".read": "auth != null",
+        "$cpfNormalizado": {
+          ".write": "auth != null && !data.exists()",
+          ".validate": "newData.isString() && newData.val().length > 0"
+        }
+      }
+    },
+    "usuarios": {
+      ".read": "auth != null",
+      "$userId": {
+        ".write": "auth != null && (auth.uid == $userId || root.child('usuarios').child(auth.uid).child('funcao').val() == 'ADMINISTRADOR_GERAL')"
+      }
+    },
+    "equipes": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('usuarios').child(auth.uid).child('funcao').val() == 'ADMINISTRADOR_GERAL'"
+    },
+    "planos": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('usuarios').child(auth.uid).child('funcao').val() == 'ADMINISTRADOR_GERAL'"
+    }
+  }
+}
