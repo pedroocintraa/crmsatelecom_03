@@ -69,7 +69,7 @@ export class FirebaseUsuariosService {
         dataCadastro: new Date().toISOString(),
         ativo: true,
         permissoes: permissoes, // Aplicar permissões automaticamente
-        nomeEquipe: nomeEquipe // Incluir nome da equipe
+        ...(nomeEquipe && { nomeEquipe }) // Incluir nome da equipe apenas se não for undefined
       };
 
       // Criar usuário no Firebase Auth com senha padrão
@@ -118,12 +118,17 @@ export class FirebaseUsuariosService {
           const equipeSnapshot = await get(equipeRef);
           if (equipeSnapshot.exists()) {
             const equipeData = equipeSnapshot.val();
-            dadosLimpos.nomeEquipe = equipeData.nome;
-            console.log(`🏢 Nome da equipe atualizado: ${equipeData.nome}`);
+            if (equipeData.nome) {
+              dadosLimpos.nomeEquipe = equipeData.nome;
+              console.log(`🏢 Nome da equipe atualizado: ${equipeData.nome}`);
+            }
           }
         } catch (equipeError) {
           console.warn('⚠️ Erro ao buscar nome da equipe:', equipeError);
         }
+      } else if (dados.equipeId === null || dados.equipeId === '') {
+        // Se equipeId foi removido, remover também o nomeEquipe
+        dadosLimpos.nomeEquipe = undefined;
       }
 
       const usuarioRef = ref(realtimeDb, `usuarios/${id}`);
