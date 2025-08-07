@@ -13,18 +13,44 @@ export function formatarDataBrasil(dataISO: string): string {
   if (!dataISO) return '';
   
   try {
-    // Criar data no timezone local brasileiro
+    console.log('🔍 formatarDataBrasil recebeu:', dataISO);
+    
+    // Se a data já está no formato YYYY-MM-DDT00:00:00-03:00, extrair apenas a parte da data
+    if (dataISO.includes('T00:00:00-03:00')) {
+      const dataPart = dataISO.split('T')[0];
+      console.log('🔍 Extraindo parte da data:', dataPart);
+      
+      // Converter YYYY-MM-DD para DD/MM/YYYY
+      const [year, month, day] = dataPart.split('-');
+      const dataFormatada = `${day}/${month}/${year}`;
+      console.log('🔍 Data formatada:', dataFormatada);
+      return dataFormatada;
+    }
+    
+    // Se é uma data simples no formato YYYY-MM-DD, processar diretamente
+    if (dataISO.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      console.log('🔍 Data simples detectada:', dataISO);
+      const [year, month, day] = dataISO.split('-');
+      const dataFormatada = `${day}/${month}/${year}`;
+      console.log('🔍 Data formatada (método simples):', dataFormatada);
+      return dataFormatada;
+    }
+    
+    // Para outros formatos, usar o método anterior
     const data = new Date(dataISO);
     
     // Verificar se a data é válida
     if (isNaN(data.getTime())) {
+      console.log('❌ Data inválida:', dataISO);
       return '';
     }
     
     // Formatar no padrão brasileiro
-    return data.toLocaleDateString('pt-BR', {
+    const dataFormatada = data.toLocaleDateString('pt-BR', {
       timeZone: 'America/Sao_Paulo'
     });
+    console.log('🔍 Data formatada (método anterior):', dataFormatada);
+    return dataFormatada;
   } catch (error) {
     console.error('Erro ao formatar data:', error);
     return '';
@@ -79,6 +105,29 @@ export function converterParaTimezoneBrasil(dataISO: string): Date {
   } catch (error) {
     console.error('Erro ao converter timezone:', error);
     return new Date();
+  }
+}
+
+/**
+ * Converte data para ISO string no fuso horário de Brasília
+ */
+export function converterDataParaBrasilISO(dataString: string): string {
+  if (!dataString) return '';
+  
+  try {
+    // Criar data no fuso horário de Brasília
+    const data = new Date(dataString + 'T00:00:00-03:00');
+    
+    // Verificar se a data é válida
+    if (isNaN(data.getTime())) {
+      return '';
+    }
+    
+    // Retornar no formato ISO mantendo o fuso horário de Brasília
+    return dataString + 'T00:00:00-03:00';
+  } catch (error) {
+    console.error('Erro ao converter data para Brasília:', error);
+    return '';
   }
 }
 
@@ -139,4 +188,17 @@ export function unmaskCPF(value: string): string {
 
 export function unmaskPhone(value: string): string {
   return value.replace(/\D/g, '');
+}
+
+/**
+ * Retorna a data atual no fuso horário de Brasília
+ */
+export function getDataAtualBrasil(): string {
+  const agora = new Date();
+  const offsetBrasil = -3; // UTC-3
+  const offsetLocal = agora.getTimezoneOffset() / 60;
+  const diffOffset = offsetBrasil - offsetLocal;
+  
+  const dataBrasil = new Date(agora.getTime() + (diffOffset * 60 * 60 * 1000));
+  return dataBrasil.toISOString();
 }

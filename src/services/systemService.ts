@@ -3,21 +3,40 @@
  * Centraliza todas as operações de dados e negócio
  */
 
-import { supabaseService } from "./supabaseService";
 import { usuariosService } from "./usuariosService";
 import { fileService } from "./fileService";
 import { equipesService } from "./equipesService";
 import { configuracaoService } from "./configuracaoService";
 
 class SystemService {
-  // Delegação para vendas (Supabase)
+  // Stubs temporários para vendas (serão implementados com Firebase)
   get vendas() {
     return {
-      salvar: supabaseService.salvarVenda.bind(supabaseService),
-      obter: supabaseService.obterVendas.bind(supabaseService),
-      obterPorId: supabaseService.obterVendaCompleta.bind(supabaseService),
-      atualizarStatus: supabaseService.atualizarStatusVenda.bind(supabaseService),
-      obterEstatisticas: supabaseService.obterEstatisticasVendas.bind(supabaseService)
+      salvar: async (vendaData: any) => {
+        console.warn('⚠️ Método de vendas não implementado - migração para Firebase pendente');
+        throw new Error('Funcionalidade de vendas temporariamente indisponível - migração para Firebase em andamento');
+      },
+      obter: async () => {
+        console.warn('⚠️ Método de vendas não implementado - migração para Firebase pendente');
+        return [];
+      },
+      obterPorId: async (id: string) => {
+        console.warn('⚠️ Método de vendas não implementado - migração para Firebase pendente');
+        throw new Error('Funcionalidade de vendas temporariamente indisponível - migração para Firebase em andamento');
+      },
+      atualizarStatus: async (id: string, status: string) => {
+        console.warn('⚠️ Método de vendas não implementado - migração para Firebase pendente');
+        throw new Error('Funcionalidade de vendas temporariamente indisponível - migração para Firebase em andamento');
+      },
+      obterEstatisticas: async () => {
+        console.warn('⚠️ Método de vendas não implementado - migração para Firebase pendente');
+        return {
+          totalVendas: 0,
+          vendasMes: 0,
+          vendasSemana: 0,
+          vendasHoje: 0
+        };
+      }
     };
   }
 
@@ -73,8 +92,8 @@ class SystemService {
   async verificarStatusServidor(): Promise<{ status: 'online' | 'offline'; latencia?: number }> {
     try {
       const inicio = Date.now();
-      const { supabase } = await import("@/integrations/supabase/client");
-      await supabase.from('usuarios').select('id').limit(1);
+      // TODO: Implementar verificação de status com Firebase
+      console.warn('⚠️ Verificação de status do servidor não implementada - migração para Firebase pendente');
       const latencia = Date.now() - inicio;
       return { status: 'online', latencia };
     } catch (error) {

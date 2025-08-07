@@ -1,59 +1,55 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { Plano, PlanoFormData } from "@/types/configuracao";
+import firebaseConfiguracaoService from "./firebaseConfiguracaoService";
 
 export class ConfiguracaoService {
-  // Planos
+  // Implementação com Firebase
   async obterPlanos(): Promise<Plano[]> {
-    const { data, error } = await supabase
-      .from('planos')
-      .select('*')
-      .order('nome');
-    
-    if (error) throw error;
-    return data || [];
+    return firebaseConfiguracaoService.obterPlanos();
   }
 
   async obterPlanosAtivos(): Promise<Plano[]> {
-    const { data, error } = await supabase
-      .from('planos')
-      .select('*')
-      .eq('ativo', true)
-      .order('nome');
-    
-    if (error) throw error;
-    return data || [];
+    return firebaseConfiguracaoService.obterPlanosAtivos();
+  }
+
+  async obterPlanoPorId(id: string): Promise<Plano | null> {
+    return firebaseConfiguracaoService.obterPlanoPorId(id);
   }
 
   async criarPlano(plano: PlanoFormData): Promise<Plano> {
-    const { data, error } = await supabase
-      .from('planos')
-      .insert(plano)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    return firebaseConfiguracaoService.criarPlano(plano);
   }
 
   async atualizarPlano(id: string, plano: Partial<PlanoFormData>): Promise<Plano> {
-    const { data, error } = await supabase
-      .from('planos')
-      .update(plano)
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    return firebaseConfiguracaoService.atualizarPlano(id, plano);
   }
 
   async excluirPlano(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('planos')
-      .update({ ativo: false })
-      .eq('id', id);
-    
-    if (error) throw error;
+    await firebaseConfiguracaoService.excluirPlano(id);
+  }
+
+  async desativarPlano(id: string): Promise<boolean> {
+    return firebaseConfiguracaoService.desativarPlano(id);
+  }
+
+  async reativarPlano(id: string): Promise<boolean> {
+    return firebaseConfiguracaoService.reativarPlano(id);
+  }
+
+  async validarNomeUnico(nome: string, idExcluir?: string): Promise<boolean> {
+    const resultado = await firebaseConfiguracaoService.validarNomeUnico(nome, idExcluir);
+    return resultado.unico;
+  }
+
+  async obterPlanoParaExclusao(id: string): Promise<Plano | null> {
+    return firebaseConfiguracaoService.obterPlanoParaExclusao(id);
+  }
+
+  async excluirPlanoPermanentemente(id: string): Promise<boolean> {
+    return firebaseConfiguracaoService.excluirPlanoPermanentemente(id);
+  }
+
+  async sincronizarPlanos(): Promise<{ removidos: number; erros: string[] }> {
+    return firebaseConfiguracaoService.sincronizarPlanos();
   }
 }
 

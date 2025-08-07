@@ -26,12 +26,12 @@ export const Navbar = () => {
     path: "/",
     label: "Dashboard",
     icon: Home,
-    permitido: permissoes?.podeAcessarDashboard
+    permitido: permissoes?.podeAcessarDashboard || true
   }, {
     path: "/vendas",
     label: "Nova Venda",
     icon: Plus,
-    permitido: true // Todos podem criar vendas
+    permitido: permissoes?.podeAcessarNovaVenda || false
   }, {
     path: "/acompanhamento",
     label: "Vendas",
@@ -41,17 +41,17 @@ export const Navbar = () => {
     path: "/usuarios",
     label: "Usuários",
     icon: UserCog,
-    permitido: permissoes?.podeGerenciarUsuarios
+    permitido: permissoes?.podeGerenciarUsuarios || false
   }, {
     path: "/equipes",
     label: "Equipes",
     icon: Users,
-    permitido: permissoes?.podeGerenciarEquipes
+    permitido: permissoes?.podeGerenciarEquipes || false
   }, {
     path: "/configuracoes",
     label: "Configurações",
     icon: Settings,
-    permitido: usuario?.funcao === "ADMINISTRADOR_GERAL"
+    permitido: permissoes?.podeAcessarConfiguracoes || false
   }].filter(item => item.permitido);
   const isActive = (path: string) => location.pathname === path;
   return <nav className="bg-card shadow-card border-b border-border sticky top-0 z-50">

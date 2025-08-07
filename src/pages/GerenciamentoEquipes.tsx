@@ -389,7 +389,7 @@ export function GerenciamentoEquipes() {
                             {equipe.supervisor && (
                               <p><strong>Supervisor:</strong> {equipe.supervisor}</p>
                             )}
-                            <p><strong>Criada em:</strong> {new Date(equipe.created_at).toLocaleDateString()}</p>
+                            <p><strong>Criada em:</strong> {equipe.created_at ? new Date(equipe.created_at).toLocaleDateString() : 'Data não disponível'}</p>
                           </div>
                           
                            {permissoes?.podeGerenciarEquipes && (

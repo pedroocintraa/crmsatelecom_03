@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabaseService } from "@/services/supabaseService";
+
 import { Venda } from "@/types/venda";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,25 +21,36 @@ import {
   Eye, 
   Download, 
   Edit3,
+  Edit,
   Save,
   X,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle
 } from "lucide-react";
 import { maskCPF, maskPhone, unmaskCPF, unmaskPhone, formatarDataBrasil, formatarDataNascimento } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const DetalhesVenda = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const [venda, setVenda] = useState<Venda | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
+
+  
   // Estados para edição
   const [editandoCliente, setEditandoCliente] = useState(false);
   const [editandoEndereco, setEditandoEndereco] = useState(false);
+  const [editandoDataInstalacao, setEditandoDataInstalacao] = useState(false);
+  const [editandoVenda, setEditandoVenda] = useState(false);
   const [dadosEditados, setDadosEditados] = useState<any>(null);
+  const [dataInstalacaoEditada, setDataInstalacaoEditada] = useState<string>('');
+  const [planoEditado, setPlanoEditado] = useState<string>('');
+  const [vencimentoEditado, setVencimentoEditado] = useState<number | undefined>(undefined);
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -50,10 +61,11 @@ const DetalhesVenda = () => {
 
     const carregarVenda = async () => {
       try {
-        const vendaCompleta = await supabaseService.obterVendaCompleta(id);
+        const { vendasService } = await import('@/services/vendasService');
+        
+        const vendaCompleta = await vendasService.obterVendaPorId(id);
         if (vendaCompleta) {
           setVenda(vendaCompleta);
-          console.log('✅ Venda carregada do Supabase:', vendaCompleta);
         } else {
           toast({
             title: "Erro",
@@ -80,7 +92,7 @@ const DetalhesVenda = () => {
   const getStatusLabel = (status: Venda["status"]) => {
     const labels = {
       pendente: "Pendente",
-      em_andamento: "Em Andamento",
+      em_atendimento: "Em Atendimento",
       auditada: "Auditada",
       gerada: "Gerada",
       aguardando_habilitacao: "Aguardando Habilitação",
@@ -93,7 +105,7 @@ const DetalhesVenda = () => {
   const getStatusVariant = (status: Venda["status"]) => {
     const variants = {
       pendente: "outline",
-      em_andamento: "default",
+      em_atendimento: "default",
       auditada: "secondary",
       gerada: "default",
       aguardando_habilitacao: "default",
@@ -104,7 +116,10 @@ const DetalhesVenda = () => {
   };
 
   const formatarData = (dataISO: string) => {
-    return formatarDataBrasil(dataISO);
+    console.log('🔍 formatarData chamado com:', dataISO);
+    const resultado = formatarDataBrasil(dataISO);
+    console.log('🔍 formatarData retornou:', resultado);
+    return resultado;
   };
 
   // Funções para edição
@@ -135,7 +150,100 @@ const DetalhesVenda = () => {
   const cancelarEdicao = () => {
     setEditandoCliente(false);
     setEditandoEndereco(false);
+    setEditandoDataInstalacao(false);
+    setEditandoVenda(false);
     setDadosEditados(null);
+    setDataInstalacaoEditada('');
+    setPlanoEditado('');
+    setVencimentoEditado(undefined);
+  };
+
+  const iniciarEdicaoDataInstalacao = () => {
+    setEditandoDataInstalacao(true);
+    setDataInstalacaoEditada(venda?.dataInstalacao || '');
+  };
+
+  const salvarDataInstalacao = async () => {
+    if (!venda) return;
+    
+    setSalvando(true);
+    try {
+      const { vendasService } = await import('@/services/vendasService');
+      const { converterDataParaBrasilISO } = await import('@/lib/utils');
+      
+      // Converter data para fuso horário de Brasília
+      const dataInstalacaoISO = converterDataParaBrasilISO(dataInstalacaoEditada);
+      
+      await vendasService.atualizarVenda(venda.id, {
+        dataInstalacao: dataInstalacaoISO
+      });
+      
+      // Atualizar o estado local
+      setVenda({
+        ...venda,
+        dataInstalacao: dataInstalacaoISO
+      });
+      
+      setEditandoDataInstalacao(false);
+      setDataInstalacaoEditada('');
+      
+      toast({
+        title: "Sucesso",
+        description: "Data de instalação atualizada com sucesso",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar data de instalação:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar data de instalação",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const iniciarEdicaoVenda = () => {
+    setPlanoEditado(venda?.planoNome || '');
+    setVencimentoEditado(venda?.diaVencimento);
+    setEditandoVenda(true);
+  };
+
+  const salvarVenda = async () => {
+    if (!venda) return;
+
+    setSalvando(true);
+    try {
+      const { vendasService } = await import('@/services/vendasService');
+      
+      // Preparar dados atualizados
+      const dadosAtualizados: Partial<Venda> = {
+        planoNome: planoEditado,
+        diaVencimento: vencimentoEditado
+      };
+
+      // Atualizar venda no Firebase
+      const vendaAtualizada = await vendasService.atualizarVenda(venda.id, dadosAtualizados);
+      setVenda(vendaAtualizada);
+
+      setEditandoVenda(false);
+      setPlanoEditado('');
+      setVencimentoEditado(undefined);
+
+      toast({
+        title: "Sucesso",
+        description: "Informações da venda atualizadas com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar venda:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar informações da venda",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const salvarAlteracoes = async () => {
@@ -143,35 +251,43 @@ const DetalhesVenda = () => {
 
     setSalvando(true);
     try {
+      const { vendasService } = await import('@/services/vendasService');
+      
+      // Preparar dados atualizados
+      const dadosAtualizados: Partial<Venda> = {};
+      
       // Atualizar dados do cliente
       if (editandoCliente) {
-        await supabaseService.atualizarDadosCliente(venda.id, {
-          nome: dadosEditados.nome.toUpperCase(),
-          cpf: unmaskCPF(dadosEditados.cpf),
-          telefone: unmaskPhone(dadosEditados.telefone),
+        dadosAtualizados.cliente = {
+          ...venda.cliente,
+          nome: dadosEditados.nome,
+          cpf: dadosEditados.cpf.replace(/\D/g, ''),
+          telefone: dadosEditados.telefone.replace(/\D/g, ''),
           email: dadosEditados.email,
           dataNascimento: dadosEditados.dataNascimento
-        });
+        };
       }
 
       // Atualizar dados do endereço
       if (editandoEndereco) {
-        await supabaseService.atualizarEnderecoCliente(venda.id, {
-          cep: dadosEditados.cep,
-          logradouro: dadosEditados.logradouro.toUpperCase(),
-          numero: dadosEditados.numero,
-          complemento: dadosEditados.complemento?.toUpperCase() || '',
-          bairro: dadosEditados.bairro.toUpperCase(),
-          localidade: dadosEditados.localidade.toUpperCase(),
-          uf: dadosEditados.uf.toUpperCase()
-        });
+        dadosAtualizados.cliente = {
+          ...venda.cliente,
+          endereco: {
+            ...venda.cliente.endereco,
+            cep: dadosEditados.cep,
+            logradouro: dadosEditados.logradouro,
+            numero: dadosEditados.numero,
+            complemento: dadosEditados.complemento,
+            bairro: dadosEditados.bairro,
+            localidade: dadosEditados.localidade,
+            uf: dadosEditados.uf
+          }
+        };
       }
 
-      // Recarregar venda atualizada
-      const vendaAtualizada = await supabaseService.obterVendaCompleta(venda.id);
-      if (vendaAtualizada) {
-        setVenda(vendaAtualizada);
-      }
+      // Atualizar venda no Firebase
+      const vendaAtualizada = await vendasService.atualizarVenda(venda.id, dadosAtualizados);
+      setVenda(vendaAtualizada);
 
       cancelarEdicao();
       toast({
@@ -195,25 +311,81 @@ const DetalhesVenda = () => {
     novoStatus: Venda["status"],
     extraData?: { dataInstalacao?: string; motivoPerda?: string }
   ) => {
+    console.log('🔍 ====== INÍCIO DO handleStatusChange ======');
     console.log('🔍 handleStatusChange chamado:', { novoStatus, extraData, vendaId: venda?.id });
+    console.log('🔍 Tipo do extraData:', typeof extraData);
+    console.log('🔍 ExtraData completo:', JSON.stringify(extraData, null, 2));
     
-    if (!venda) return;
+    if (!venda) {
+      console.log('❌ Venda não encontrada');
+      return;
+    }
     
     try {
       console.log('🔍 Chamando atualizarStatusVenda...');
-      await supabaseService.atualizarStatusVenda(venda.id, novoStatus, extraData);
+      const { vendasService } = await import('@/services/vendasService');
       
-      console.log('🔍 Recarregando venda...');
-      const vendaAtualizada = await supabaseService.obterVendaCompleta(venda.id);
-      if (vendaAtualizada) {
-        setVenda(vendaAtualizada);
-        toast({
-          title: "Status atualizado",
-          description: `Venda marcada como ${getStatusLabel(novoStatus).toLowerCase()}.`,
-        });
+      // Preparar dados para atualização
+      let dadosAtualizacao: any = {};
+      
+      // Lógica de reset dos campos de instalação
+      const statusQueResetaInstalacao = ['pendente', 'em_atendimento', 'perdida'];
+      const statusQueMantemInstalacao = ['auditada', 'gerada', 'aguardando_habilitacao', 'habilitada'];
+      
+      if (statusQueResetaInstalacao.includes(novoStatus)) {
+        console.log('🔍 Resetando campos de instalação para status:', novoStatus);
+        dadosAtualizacao.dataInstalacao = null;
+        dadosAtualizacao.dataInstalacaoReal = null;
+      } else if (statusQueMantemInstalacao.includes(novoStatus)) {
+        console.log('🔍 Mantendo campos de instalação para status:', novoStatus);
+        // Não resetar os campos
+      }
+      
+      // Incluir extraData nos dados de atualização
+      if (extraData?.dataInstalacao) {
+        console.log('🔍 Incluindo dataInstalacao nos dados de atualização:', extraData.dataInstalacao);
+        dadosAtualizacao.dataInstalacao = extraData.dataInstalacao;
+      }
+      
+      // Atualizar status no Firebase
+      const vendaAtualizada = await vendasService.atualizarStatusVenda(
+        venda.id,
+        novoStatus,
+        extraData?.motivoPerda,
+        dadosAtualizacao // Passar dados adicionais incluindo dataInstalacao
+      );
+      
+      console.log('🔍 Venda atualizada com sucesso:', vendaAtualizada);
+      console.log('🔍 dataInstalacao na venda atualizada:', vendaAtualizada.dataInstalacao);
+      console.log('🔍 Tipo da dataInstalacao:', typeof vendaAtualizada.dataInstalacao);
+      setVenda(vendaAtualizada);
+      
+      toast({
+        title: "Status atualizado",
+        description: `Venda marcada como ${getStatusLabel(novoStatus).toLowerCase()}.`,
+      });
+      
+      console.log('🔍 handleStatusChange concluído com sucesso');
+      
+      // Se o status for "habilitada", redirecionar para a página de acompanhamento após um breve delay
+      if (novoStatus === "habilitada") {
+        console.log('🔍 Status habilitada detectado, redirecionando...');
+        setTimeout(() => {
+          navigate('/acompanhamento');
+        }, 1500);
       }
     } catch (error) {
       console.error("❌ Erro ao atualizar status:", error);
+      
+      // Log detalhado do erro
+      if (error instanceof Error) {
+        console.error("❌ Detalhes do erro:", {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+      
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o status da venda.",
@@ -222,70 +394,104 @@ const DetalhesVenda = () => {
     }
   };
 
-  const baixarTodosDocumentos = async () => {
-    if (!venda?.documentos) {
-      toast({
-        title: "Erro",
-        description: "Nenhum documento disponível para download",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  /**
+   * Função simplificada que sempre abre em nova aba
+   */
+  const baixarArquivoSimples = async (url: string, nomeArquivo: string) => {
+    console.log(`📄 Abrindo em nova aba: ${nomeArquivo}`);
+    
     try {
-      // Importar JSZip dinamicamente
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-
-      let temDocumentos = false;
-
-      // Adicionar documentos de cada categoria ao ZIP
-      Object.entries(venda.documentos).forEach(([categoria, docs]) => {
-        if (docs && docs.length > 0) {
-          const pasta = zip.folder(categoria);
-          docs.forEach((doc: any) => { // Assuming DocumentoAnexado type is not directly imported here, using 'any' for now
-            // Converter base64 para blob
-            const byteCharacters = atob(doc.conteudo.split(',')[1]);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            pasta?.file(doc.nome, byteArray);
-            temDocumentos = true;
+      // Abrir diretamente em nova aba
+      const newWindow = window.open(url, '_blank');
+      
+      // Aguardar um pouco para verificar se a aba realmente abriu
+      setTimeout(() => {
+        if (newWindow && !newWindow.closed) {
+          // Sucesso - nova aba aberta
+          toast({
+            title: "✅ Arquivo aberto em nova aba",
+            description: "Para baixar: Cmd+S (Mac) ou Ctrl+S (Windows), ou botão direito → 'Salvar imagem como...'",
+            duration: 8000,
+          });
+        } else {
+          // Popup realmente bloqueado
+          toast({
+            title: "🚫 Popup bloqueado",
+            description: `Permita popups para este site e tente baixar ${nomeArquivo} novamente`,
+            variant: "destructive",
+            duration: 6000,
           });
         }
-      });
-
-      if (!temDocumentos) {
+      }, 100); // Aguarda 100ms para verificar o status da aba
+      
+    } catch (error) {
+      console.error('❌ Erro ao abrir nova aba:', error);
+      
+      // Fallback: copiar URL
+      try {
+        await navigator.clipboard.writeText(url);
+        
         toast({
-          title: "Erro",
-          description: "Nenhum documento encontrado para download",
+          title: "📋 URL copiada para clipboard",
+          description: `Cole no navegador para acessar: ${nomeArquivo}`,
+          duration: 6000,
+        });
+        
+      } catch (clipboardError) {
+        console.error('❌ Falha ao copiar URL:', clipboardError);
+        
+        toast({
+          title: "❌ Erro no download",
+          description: `Não foi possível baixar ${nomeArquivo}`,
           variant: "destructive",
         });
-        return;
       }
+    }
+  };
 
-      // Gerar e baixar o ZIP
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `documentos_venda_${venda.cliente.nome.replace(/\s+/g, '_')}_${id}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
 
-      toast({
-        title: "Sucesso",
-        description: "Download de todos os documentos iniciado!",
-      });
+
+  const baixarDocumentoIndividual = async (doc: any, categoria: string) => {
+    try {
+      console.log(`📄 Iniciando download: ${doc.nome}`);
+
+      // Se é base64, converter para blob e baixar
+      if (doc.conteudo.includes('data:') && doc.conteudo.includes(',')) {
+        const base64Data = doc.conteudo.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: doc.tipo || 'image/jpeg' });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.nome || `${categoria}_documento.jpg`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "✅ Download concluído",
+          description: `${doc.nome} foi baixado`,
+        });
+      } 
+      // Se é URL do Firebase Storage, usar download via fetch
+      else if (doc.conteudo.includes('firebasestorage.googleapis.com')) {
+        await baixarArquivoSimples(doc.conteudo, doc.nome || `${categoria}_documento.jpg`);
+      }
     } catch (error) {
-      console.error("Erro ao baixar documentos:", error);
+      console.error(`❌ Erro no download: ${doc.nome}`, error);
       toast({
-        title: "Erro",
-        description: "Erro ao gerar arquivo ZIP",
+        title: "❌ Erro no download",
+        description: `Não foi possível baixar ${doc.nome}`,
         variant: "destructive",
       });
     }
@@ -357,7 +563,7 @@ const DetalhesVenda = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -368,20 +574,24 @@ const DetalhesVenda = () => {
           <div>
             <h1 className="text-2xl font-bold">Detalhes da Venda</h1>
             <p className="text-muted-foreground">
-              Venda #{id?.slice(-8)} • {formatarData(venda.dataVenda)}
+              Venda #{venda.id} - {getStatusLabel(venda.status)}
             </p>
           </div>
         </div>
+        
         <div className="flex gap-2">
-          <Badge variant={getStatusVariant(venda.status)}>
-            {getStatusLabel(venda.status)}
-          </Badge>
+
+          <Button variant="outline" onClick={exportarDadosVenda}>
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar Dados
+          </Button>
         </div>
       </div>
 
+      {/* Status e Info Básica */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Dados do Cliente */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Informações do Cliente */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -500,6 +710,7 @@ const DetalhesVenda = () => {
             </CardContent>
           </Card>
 
+          {/* Endereço */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -632,6 +843,139 @@ const DetalhesVenda = () => {
             </CardContent>
           </Card>
 
+          {/* Informações da Venda */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Informações da Venda</CardTitle>
+              {!editandoVenda ? (
+                <Button variant="outline" size="sm" onClick={iniciarEdicaoVenda}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={salvarVenda} disabled={salvando}>
+                    <Save className="h-4 w-4 mr-1" />
+                    Salvar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={cancelarEdicao} disabled={salvando}>
+                    <X className="h-4 w-4 mr-1" />
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="plano">Plano</Label>
+                  {!editandoVenda ? (
+                    <p className="font-medium">{venda.planoNome || 'Não informado'}</p>
+                  ) : (
+                    <Input
+                      id="plano"
+                      value={planoEditado}
+                      onChange={(e) => setPlanoEditado(e.target.value)}
+                      placeholder="Nome do plano"
+                    />
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="vencimento">Dia de Vencimento</Label>
+                  {!editandoVenda ? (
+                    <p className="font-medium">{venda.diaVencimento}</p>
+                  ) : (
+                    <Select 
+                      value={vencimentoEditado?.toString() || ''} 
+                      onValueChange={(value) => setVencimentoEditado(parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o dia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({length: 28}, (_, i) => i + 1).map(dia => (
+                          <SelectItem key={dia} value={dia.toString()}>
+                            {dia}º dia
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Data da Venda</label>
+                  <p className="font-medium">{formatarData(venda.dataVenda)}</p>
+                </div>
+                {/* Data de Instalação Agendada */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Instalação agendada para:</label>
+                      {!editandoDataInstalacao ? (
+                        <p className="font-medium">
+                          {(() => {
+                            console.log('🔍 Renderizando campo dataInstalacao:', venda.dataInstalacao);
+                            return venda.dataInstalacao ? formatarData(venda.dataInstalacao) : 'Não agendada';
+                          })()}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Input
+                            type="date"
+                            value={dataInstalacaoEditada}
+                            onChange={(e) => setDataInstalacaoEditada(e.target.value)}
+                            className="w-auto"
+                          />
+                          <Button 
+                            size="sm" 
+                            onClick={salvarDataInstalacao} 
+                            disabled={salvando}
+                          >
+                            <Save className="h-4 w-4 mr-1" />
+                            {salvando ? 'Salvando...' : 'Salvar'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setEditandoDataInstalacao(false);
+                              setDataInstalacaoEditada('');
+                            }}
+                            disabled={salvando}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {!editandoDataInstalacao && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={iniciarEdicaoDataInstalacao}
+                    >
+                      <Edit3 className="h-4 w-4 mr-1" />
+                      {venda.dataInstalacao ? 'Editar' : 'Agendar'}
+                    </Button>
+                  )}
+                </div>
+                {venda.dataInstalacaoReal && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Instalada em:</label>
+                    <p className="font-medium flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      {formatarData(venda.dataInstalacaoReal)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Observações */}
           {venda.observacoes && (
             <Card>
               <CardHeader>
@@ -647,8 +991,43 @@ const DetalhesVenda = () => {
           )}
         </div>
 
-        {/* Documentos e Ações */}
+        {/* Sidebar */}
         <div className="space-y-6">
+          {/* Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Status da Venda</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Badge variant={getStatusVariant(venda.status)}>
+                  {getStatusLabel(venda.status)}
+                </Badge>
+              </div>
+              
+              {/* Status Selector para Admin e Supervisor */}
+              {usuario?.funcao && ['ADMINISTRADOR_GERAL', 'SUPERVISOR'].includes(usuario.funcao) && (
+                <div className="space-y-2">
+                  <StatusSelector
+                    venda={venda}
+                    onStatusChange={handleStatusChange}
+                  />
+                </div>
+              )}
+
+              {/* Ações do Backoffice */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Ações do Backoffice</h4>
+                <StatusManager
+                  venda={venda}
+                  onStatusChange={handleStatusChange}
+                  showLostOption={true}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Documentos */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -675,86 +1054,19 @@ const DetalhesVenda = () => {
                   />
                 )}
                 
-                <Button 
-                  onClick={baixarTodosDocumentos}
-                  className="w-full"
-                  disabled={contarDocumentos() === 0}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Baixar Todos os Documentos
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Ações do Backoffice</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <StatusManager
-                venda={venda}
-                onStatusChange={handleStatusChange}
-                showLostOption={true}
-              />
-              
-              <div className="flex flex-col gap-2 pt-4 border-t">
-                <Button 
-                  onClick={exportarDadosVenda}
-                  variant="outline" 
-                  className="w-full"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Exportar Dados da Venda
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Informações da Venda
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">ID da Venda</label>
-                <p className="font-medium text-xs break-all">{venda.id}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Data de Cadastro</label>
-                <p className="font-medium">{formatarData(venda.dataVenda)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status Atual</label>
-                <div className="mt-1">
-                  <Badge variant={getStatusVariant(venda.status)}>
-                    {getStatusLabel(venda.status)}
-                  </Badge>
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  Use o botão "Visualizar Documentos" para ver todos os arquivos.
+                  <br />
+                  Para baixar, clique no ícone de download de cada documento.
                 </div>
               </div>
-              
-              {/* Data de Instalação */}
-              {venda.dataInstalacao && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Data de Instalação</label>
-                    <p className="font-medium">{formatarData(venda.dataInstalacao)}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Motivo da Perda */}
-              {venda.motivoPerda && (
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Motivo da Perda</label>
-                    <p className="text-sm text-muted-foreground mt-1">{venda.motivoPerda}</p>
-                  </div>
+
+
+
+              {(!venda.documentos || Object.keys(venda.documentos).length === 0) && (
+                <div className="text-center text-muted-foreground py-4">
+                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum documento anexado</p>
                 </div>
               )}
             </CardContent>

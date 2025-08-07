@@ -8,69 +8,105 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Zap } from 'lucide-react';
-import { debugAuthenticationAdvanced, validateAndFixAuth, forceTokenRefresh } from '@/utils/authFix';
+import { useAuth } from '@/contexts/AuthContext';
+import FirebaseAuthService from '@/services/firebaseAuthService';
 
 interface AuthDebugResult {
-  auth_uid: string | null;
-  auth_email: string | null;
-  jwt_claims: any;
-  session_valid: boolean;
-  usuario_encontrado: boolean;
-  usuario_id: string | null;
-  usuario_nome: string | null;
-  usuario_funcao: string | null;
+  firebase_user: any;
+  usuario: any;
+  isAuthenticated: boolean;
+  loading: boolean;
   timestamp_check: string;
 }
 
 export function AuthDebugPanel() {
+  const { user, usuario, isAuthenticated, loading } = useAuth();
   const [debugResult, setDebugResult] = useState<AuthDebugResult | null>(null);
   const [fixResult, setFixResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   const handleDebugAuth = async () => {
-    setLoading(true);
+    setDebugLoading(true);
     try {
-      const result = await debugAuthenticationAdvanced();
+      const currentUser = await FirebaseAuthService.getCurrentUser();
+      
+      const result: AuthDebugResult = {
+        firebase_user: user,
+        usuario: currentUser,
+        isAuthenticated,
+        loading,
+        timestamp_check: new Date().toISOString()
+      };
+      
       setDebugResult(result);
     } catch (error) {
       console.error('Erro no debug:', error);
     } finally {
-      setLoading(false);
+      setDebugLoading(false);
     }
   };
 
   const handleFixAuth = async () => {
-    setLoading(true);
+    setDebugLoading(true);
     try {
-      const result = await validateAndFixAuth();
-      setFixResult(result);
+      // Forçar refresh do estado de autenticação
+      const currentUser = await FirebaseAuthService.getCurrentUser();
+      
+      setFixResult({
+        success: true,
+        message: 'Estado de autenticação atualizado',
+        authData: {
+          session_valid: !!currentUser,
+          user_found: !!currentUser
+        }
+      });
       
       // Atualizar debug após correção
-      const debugResult = await debugAuthenticationAdvanced();
-      setDebugResult(debugResult);
+      const result: AuthDebugResult = {
+        firebase_user: user,
+        usuario: currentUser,
+        isAuthenticated: !!currentUser,
+        loading: false,
+        timestamp_check: new Date().toISOString()
+      };
+      
+      setDebugResult(result);
     } catch (error) {
       console.error('Erro na correção:', error);
       setFixResult({ success: false, message: error.message });
     } finally {
-      setLoading(false);
+      setDebugLoading(false);
     }
   };
 
   const handleRefreshToken = async () => {
-    setLoading(true);
+    setDebugLoading(true);
     try {
-      const success = await forceTokenRefresh();
-      if (success) {
-        // Atualizar debug após refresh
-        setTimeout(async () => {
-          const debugResult = await debugAuthenticationAdvanced();
-          setDebugResult(debugResult);
-        }, 1000);
-      }
+      // No Firebase, não precisamos refresh manual do token
+      // Mas podemos forçar uma verificação do estado atual
+      const currentUser = await FirebaseAuthService.getCurrentUser();
+      
+      setFixResult({
+        success: true,
+        message: 'Token verificado e estado atualizado'
+      });
+      
+      // Atualizar debug após refresh
+      setTimeout(async () => {
+        const result: AuthDebugResult = {
+          firebase_user: user,
+          usuario: currentUser,
+          isAuthenticated: !!currentUser,
+          loading: false,
+          timestamp_check: new Date().toISOString()
+        };
+        
+        setDebugResult(result);
+      }, 1000);
     } catch (error) {
       console.error('Erro no refresh:', error);
     } finally {
-      setLoading(false);
+      setDebugLoading(false);
     }
   };
 
@@ -95,34 +131,34 @@ export function AuthDebugPanel() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-orange-500" />
-          Debug de Autenticação Avançado
+          Debug de Autenticação Firebase
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2 flex-wrap">
           <Button
             onClick={handleDebugAuth}
-            disabled={loading}
+            disabled={debugLoading}
             variant="outline"
             size="sm"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${debugLoading ? 'animate-spin' : ''}`} />
             Debug Completo
           </Button>
           
           <Button
             onClick={handleRefreshToken}
-            disabled={loading}
+            disabled={debugLoading}
             variant="outline"
             size="sm"
           >
             <Zap className="h-4 w-4 mr-2" />
-            Refresh Token
+            Verificar Token
           </Button>
           
           <Button
             onClick={handleFixAuth}
-            disabled={loading}
+            disabled={debugLoading}
             variant="default"
             size="sm"
           >
@@ -137,24 +173,24 @@ export function AuthDebugPanel() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Estado da Sessão</h4>
+                <h4 className="font-semibold text-sm">Estado do Firebase</h4>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(debugResult.session_valid)}
+                    {getStatusIcon(!!debugResult.firebase_user)}
                     <span className="text-sm">
-                      Sessão Válida: {debugResult.session_valid ? 'Sim' : 'Não'}
+                      Firebase User: {debugResult.firebase_user ? 'Conectado' : 'Desconectado'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(!!debugResult.auth_uid)}
+                    {getStatusIcon(debugResult.isAuthenticated)}
                     <span className="text-sm">
-                      Auth UID: {debugResult.auth_uid || 'null'}
+                      Autenticado: {debugResult.isAuthenticated ? 'Sim' : 'Não'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(!!debugResult.auth_email)}
+                    {getStatusIcon(!debugResult.loading)}
                     <span className="text-sm">
-                      Auth Email: {debugResult.auth_email || 'null'}
+                      Loading: {debugResult.loading ? 'Sim' : 'Não'}
                     </span>
                   </div>
                 </div>
@@ -164,24 +200,24 @@ export function AuthDebugPanel() {
                 <h4 className="font-semibold text-sm">Dados do Usuário</h4>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(debugResult.usuario_encontrado)}
+                    {getStatusIcon(!!debugResult.usuario)}
                     <span className="text-sm">
-                      Usuário Encontrado: {debugResult.usuario_encontrado ? 'Sim' : 'Não'}
+                      Usuário Encontrado: {debugResult.usuario ? 'Sim' : 'Não'}
                     </span>
                   </div>
-                  {debugResult.usuario_nome && (
+                  {debugResult.usuario?.nome && (
                     <div className="text-sm">
-                      <strong>Nome:</strong> {debugResult.usuario_nome}
+                      <strong>Nome:</strong> {debugResult.usuario.nome}
                     </div>
                   )}
-                  {debugResult.usuario_funcao && (
+                  {debugResult.usuario?.funcao && (
                     <div className="text-sm">
-                      <strong>Função:</strong> {debugResult.usuario_funcao}
+                      <strong>Função:</strong> {debugResult.usuario.funcao}
                     </div>
                   )}
-                  {debugResult.usuario_id && (
+                  {debugResult.usuario?.id && (
                     <div className="text-sm text-xs text-muted-foreground">
-                      <strong>ID:</strong> {debugResult.usuario_id}
+                      <strong>ID:</strong> {debugResult.usuario.id}
                     </div>
                   )}
                 </div>
@@ -189,16 +225,16 @@ export function AuthDebugPanel() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {getStatusBadge(debugResult.session_valid, "Contexto Auth")}
-              {getStatusBadge(debugResult.usuario_encontrado, "Usuário Local")}
-              {getStatusBadge(!!debugResult.jwt_claims, "JWT Claims")}
+              {getStatusBadge(!!debugResult.firebase_user, "Firebase Auth")}
+              {getStatusBadge(debugResult.isAuthenticated, "Contexto Auth")}
+              {getStatusBadge(!!debugResult.usuario, "Usuário Local")}
             </div>
 
-            {debugResult.jwt_claims && (
+            {debugResult.firebase_user && (
               <details className="text-xs">
-                <summary className="cursor-pointer font-semibold">JWT Claims (clique para expandir)</summary>
+                <summary className="cursor-pointer font-semibold">Firebase User Data (clique para expandir)</summary>
                 <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
-                  {JSON.stringify(debugResult.jwt_claims, null, 2)}
+                  {JSON.stringify(debugResult.firebase_user, null, 2)}
                 </pre>
               </details>
             )}
@@ -224,8 +260,8 @@ export function AuthDebugPanel() {
 
         <Alert>
           <AlertDescription className="text-sm">
-            Este painel mostra o estado detalhado da autenticação e pode ajudar a identificar 
-            problemas de contexto JWT. Use "Corrigir Autenticação" se detectar inconsistências.
+            Este painel mostra o estado detalhado da autenticação Firebase e pode ajudar a identificar 
+            problemas de contexto. Use "Corrigir Autenticação" se detectar inconsistências.
           </AlertDescription>
         </Alert>
       </CardContent>

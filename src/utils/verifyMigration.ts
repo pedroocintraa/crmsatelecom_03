@@ -67,11 +67,11 @@ export const verificarMigracao = async (): Promise<VerificationResult> => {
   const result: VerificationResult = {
     allOnServer: false,
     details: {
-      vendas: { onServer: true, service: 'supabaseService' },
-      usuarios: { onServer: true, service: 'usuariosService (Supabase)' },
-      arquivos: { onServer: true, service: 'fileService + Supabase Storage' },
-      equipes: { onServer: true, service: 'equipesService (Supabase)' },
-      configuracoes: { onServer: true, service: 'configuracaoService (Supabase)' }
+          vendas: { onServer: false, service: 'Firebase (em migração)' },
+    usuarios: { onServer: false, service: 'Firebase (em migração)' },
+    arquivos: { onServer: false, service: 'Firebase Storage (em migração)' },
+    equipes: { onServer: false, service: 'Firebase (em migração)' },
+    configuracoes: { onServer: false, service: 'Firebase (em migração)' }
     },
     localStorage: {
       hasData: localStorageKeys.length > 0,

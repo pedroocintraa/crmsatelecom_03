@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 
 /**
  * Página para alterar senha do usuário logado
@@ -54,46 +55,55 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
-      // Primeiro, verificar se a senha atual está correta
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        password: senhaAtual,
-      });
-
-      if (signInError) {
-        toast({
-          variant: "destructive",
-          title: "Senha atual incorreta",
-          description: "A senha atual digitada está incorreta.",
-        });
-        return;
+      // Verificar se o usuário está autenticado
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) {
+        throw new Error("Usuário não está autenticado");
       }
+
+      console.log('🔑 Iniciando processo de alteração de senha...');
+
+      // Reautenticar o usuário com a senha atual
+      const credential = EmailAuthProvider.credential(currentUser.email, senhaAtual);
+      await reauthenticateWithCredential(currentUser, credential);
+      console.log('✅ Usuário reautenticado com sucesso');
 
       // Atualizar a senha
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: novaSenha
-      });
+      await updatePassword(currentUser, novaSenha);
+      console.log('✅ Senha alterada com sucesso');
 
-      if (updateError) {
-        throw updateError;
-      }
-
-      toast({
-        title: "Senha alterada",
-        description: "Sua senha foi alterada com sucesso!",
-      });
-
-      // Limpar os campos
+      // Limpar formulário
       setSenhaAtual("");
       setNovaSenha("");
       setConfirmarSenha("");
 
+      toast({
+        title: "Senha alterada com sucesso",
+        description: "Sua senha foi alterada com sucesso. Use a nova senha nos próximos logins.",
+      });
+
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
+      console.error('❌ Erro ao alterar senha:', error);
+      
+      let errorMessage = "Ocorreu um erro inesperado.";
+      
+      // Tratar erros específicos do Firebase
+      if (error.code === 'auth/wrong-password') {
+        errorMessage = "A senha atual está incorreta.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "A nova senha é muito fraca. Use pelo menos 6 caracteres.";
+      } else if (error.code === 'auth/requires-recent-login') {
+        errorMessage = "Por segurança, faça login novamente antes de alterar a senha.";
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = "Usuário não encontrado.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         variant: "destructive",
         title: "Erro ao alterar senha",
-        description: error.message || "Ocorreu um erro inesperado.",
+        description: errorMessage,
       });
     } finally {
       setLoading(false);

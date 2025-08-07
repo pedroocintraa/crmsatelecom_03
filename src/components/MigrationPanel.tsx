@@ -3,7 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertTriangle, CheckCircle, Users, RefreshCw } from 'lucide-react';
-import { migrateAllUsers, forceClearAuthSession, type MigrationResult } from '@/utils/userMigration';
+
+interface MigrationResult {
+  success: boolean;
+  total: number;
+  migrados: number;
+  ja_existiam: number;
+  erros: string[];
+  error?: string;
+}
 
 export const MigrationPanel: React.FC = () => {
   const [isMigrating, setIsMigrating] = useState(false);
@@ -14,16 +22,17 @@ export const MigrationPanel: React.FC = () => {
     setResult(null);
     
     try {
-      const migrationResult = await migrateAllUsers();
-      setResult(migrationResult);
+      // TODO: Implementar migração com Firebase
+      console.warn('⚠️ Funcionalidade de migração não implementada - migração para Firebase pendente');
       
-      if (migrationResult.success && migrationResult.migrados > 0) {
-        // Aguardar um pouco para a migração ser processada
-        setTimeout(() => {
-          alert('Migração concluída! A página será recarregada para aplicar as mudanças.');
-          forceClearAuthSession();
-        }, 2000);
-      }
+      setResult({
+        success: false,
+        total: 0,
+        migrados: 0,
+        ja_existiam: 0,
+        erros: ['Funcionalidade de migração temporariamente indisponível - migração para Firebase em andamento'],
+        error: 'Funcionalidade de migração temporariamente indisponível'
+      });
     } catch (error: any) {
       setResult({
         success: false,
@@ -40,7 +49,9 @@ export const MigrationPanel: React.FC = () => {
 
   const handleClearSession = () => {
     if (confirm('Isso irá limpar todas as sessões e recarregar a página. Continuar?')) {
-      forceClearAuthSession();
+      // TODO: Implementar limpeza de sessão com Firebase
+      console.warn('⚠️ Funcionalidade de limpeza de sessão não implementada - migração para Firebase pendente');
+      window.location.reload();
     }
   };
 
@@ -56,7 +67,7 @@ export const MigrationPanel: React.FC = () => {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Problema detectado:</strong> Usuários não sincronizados entre tabela 'usuarios' e Supabase Auth.
+            <strong>Problema detectado:</strong> Migração para Firebase em andamento.
             Isso está impedindo o cadastro de vendas.
           </AlertDescription>
         </Alert>

@@ -5,6 +5,7 @@
 export enum FuncaoUsuario {
   ADMINISTRADOR_GERAL = "ADMINISTRADOR_GERAL",
   SUPERVISOR = "SUPERVISOR",
+  BACKOFFICE = "BACKOFFICE",
   SUPERVISOR_EQUIPE = "SUPERVISOR_EQUIPE",
   VENDEDOR = "VENDEDOR"
 }
@@ -36,4 +37,6 @@ export interface PermissoesUsuario {
   podeGerenciarEquipes: boolean;
   podeCriarSupervisorEquipe: boolean;
   podeCriarVendedor: boolean;
+  podeAcessarNovaVenda: boolean;
+  podeAcessarConfiguracoes: boolean;
 }

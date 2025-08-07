@@ -24,10 +24,13 @@ import {
   Filter,
   Eye,
   User,
-  Users
+  Users,
+  CreditCard,
+  CheckCircle
 } from "lucide-react";
 import { StatusManager } from "@/components/StatusManager/StatusManager";
-import { supabaseService } from "@/services/supabaseService";
+import { VendaAutoTransitionService } from "@/services/vendaAutoTransitionService";
+
 
 /**
  * Página de acompanhamento de vendas
@@ -49,33 +52,77 @@ const AcompanhamentoVendas = () => {
   // Carregar vendas ao montar o componente
   useEffect(() => {
     const carregarVendas = async () => {
+      console.log('🔍 Carregando vendas...', { usuario: usuario?.funcao });
+      
       try {
-        // Carregar vendas do Supabase (RLS aplica automaticamente as regras de acesso)
-        const vendasCarregadas = await supabaseService.obterVendas();
+        const { vendasService } = await import('@/services/vendasService');
+        
+        let vendasCarregadas: Venda[] = [];
+        
+        // Carregar vendas baseado na função do usuário
+        const funcaoUsuario = usuario?.funcao;
+        
+        if (funcaoUsuario === 'ADMINISTRADOR_GERAL' || funcaoUsuario === 'SUPERVISOR' || funcaoUsuario === 'BACKOFFICE') {
+          // Administrador Geral, Supervisor e Backoffice veem todas as vendas
+          console.log('🔍 Carregando todas as vendas para:', funcaoUsuario);
+          vendasCarregadas = await vendasService.obterVendas();
+        } else if (funcaoUsuario === 'SUPERVISOR_EQUIPE') {
+          // Supervisor de equipe vê apenas vendas da sua equipe
+          if (usuario.equipeId) {
+            console.log('🔍 Carregando vendas da equipe:', usuario.equipeId, 'para supervisor de equipe');
+            vendasCarregadas = await vendasService.obterVendasPorEquipe(usuario.equipeId);
+          } else {
+            console.warn('⚠️ Supervisor de equipe sem equipeId definido');
+            vendasCarregadas = [];
+          }
+        } else if (funcaoUsuario === 'VENDEDOR') {
+          // Vendedor vê apenas suas próprias vendas
+          console.log('🔍 Carregando vendas do vendedor:', usuario.id);
+          vendasCarregadas = await vendasService.obterVendasPorVendedor(usuario.id);
+        } else {
+          console.warn('⚠️ Função de usuário não reconhecida:', funcaoUsuario);
+          vendasCarregadas = [];
+        }
+        
+        console.log('🔍 Vendas carregadas:', vendasCarregadas.length);
         setVendas(vendasCarregadas);
-        console.log(`📊 ${vendasCarregadas.length} vendas carregadas do Supabase`);
       } catch (error) {
-        console.error("Erro ao carregar vendas:", error);
+        console.error("❌ Erro ao carregar vendas:", error);
+        
+        // Log detalhado do erro
+        if (error instanceof Error) {
+          console.error("❌ Detalhes do erro:", {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+        }
+        
         toast({
           variant: "destructive",
           title: "Erro ao carregar vendas",
           description: "Não foi possível carregar as vendas.",
         });
       } finally {
+        console.log('🔍 Finalizando carregamento de vendas');
         setLoading(false);
       }
     };
 
     if (usuario) {
+      console.log('🔍 Usuário encontrado, iniciando carregamento');
       carregarVendas();
+    } else {
+      console.log('🔍 Usuário não encontrado, aguardando...');
     }
   }, [toast, usuario]);
 
   /**
    * Filtra vendas baseado no texto, status, vendedor, equipe e período de datas
+   * Ordena por data mais recente primeiro
    */
   const vendasFiltradas = useMemo(() => {
-    return vendas.filter(venda => {
+    const vendasFiltradas = vendas.filter(venda => {
       const matchTexto = filtroTexto === "" || 
         venda.cliente.nome.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         venda.cliente.endereco.bairro.toLowerCase().includes(filtroTexto.toLowerCase()) ||
@@ -105,6 +152,13 @@ const AcompanhamentoVendas = () => {
 
       return matchTexto && matchStatus && matchVendedor && matchEquipe && matchData;
     });
+
+    // Ordenar por data mais recente primeiro
+    return vendasFiltradas.sort((a, b) => {
+      const dataA = new Date(a.dataGeracao || a.dataVenda);
+      const dataB = new Date(b.dataGeracao || b.dataVenda);
+      return dataB.getTime() - dataA.getTime(); // Mais recente primeiro
+    });
   }, [vendas, filtroTexto, filtroStatus, filtroVendedor, filtroEquipe, dataInicio, dataFim]);
 
   // Listas únicas para filtros
@@ -126,12 +180,40 @@ const AcompanhamentoVendas = () => {
     novoStatus: Venda["status"],
     extraData?: { dataInstalacao?: string; motivoPerda?: string }
   ) => {
+    console.log('🔍 ====== INÍCIO DO handleAtualizarStatus ======');
+    console.log('🔍 handleAtualizarStatus chamado:', { id, novoStatus, extraData });
+    
     try {
-      await supabaseService.atualizarStatusVenda(id, novoStatus, extraData);
+      const { vendasService } = await import('@/services/vendasService');
       
-      // Recarregar vendas para refletir mudanças
-      const vendasAtualizadas = await supabaseService.obterVendas();
-      setVendas(vendasAtualizadas);
+      // Preparar dados adicionais
+      let dadosAdicionais: any = {};
+      if (extraData?.dataInstalacao) {
+        console.log('🔍 Incluindo dataInstalacao nos dados adicionais:', extraData.dataInstalacao);
+        dadosAdicionais.dataInstalacao = extraData.dataInstalacao;
+      }
+      
+      // Atualizar status no Firebase
+      await vendasService.atualizarStatusVenda(
+        id, 
+        novoStatus, 
+        extraData?.motivoPerda,
+        dadosAdicionais // ✅ Agora passa os dados adicionais corretamente
+      );
+
+      // Atualizar dados locais
+      setVendas(prevVendas => 
+        prevVendas.map(venda => 
+          venda.id === id 
+            ? { 
+                ...venda, 
+                status: novoStatus,
+                ...(extraData?.dataInstalacao && { dataInstalacao: extraData.dataInstalacao }),
+                ...(extraData?.motivoPerda && { motivoPerda: extraData.motivoPerda })
+              }
+            : venda
+        )
+      );
 
       toast({
         title: "Status atualizado",
@@ -153,7 +235,7 @@ const AcompanhamentoVendas = () => {
   const getStatusLabel = (status: Venda["status"]) => {
     const labels = {
       pendente: "Pendente",
-      em_andamento: "Em Andamento",
+      em_atendimento: "Em Atendimento",
       auditada: "Auditada",
       gerada: "Gerada",
       aguardando_habilitacao: "Aguardando Habilitação",
@@ -169,7 +251,7 @@ const AcompanhamentoVendas = () => {
   const getStatusVariant = (status: Venda["status"]) => {
     switch (status) {
       case "pendente": return "outline";
-      case "em_andamento": return "default";
+      case "em_atendimento": return "default";
       case "auditada": return "secondary";
       case "gerada": return "default";
       case "aguardando_habilitacao": return "default";
@@ -373,11 +455,11 @@ const AcompanhamentoVendas = () => {
                 Pendentes
               </Button>
               <Button
-                variant={filtroStatus === "em_andamento" ? "default" : "outline"}
-                onClick={() => setFiltroStatus("em_andamento")}
+                variant={filtroStatus === "em_atendimento" ? "default" : "outline"}
+                onClick={() => setFiltroStatus("em_atendimento")}
                 size="sm"
               >
-                Em Andamento
+                Em Atendimento
               </Button>
               <Button
                 variant={filtroStatus === "auditada" ? "default" : "outline"}
@@ -423,7 +505,12 @@ const AcompanhamentoVendas = () => {
       <div className="space-y-4">
         {vendasFiltradas.length > 0 ? (
           vendasFiltradas.map((venda) => (
-            <Card key={venda.id} className="bg-gradient-card shadow-card hover:shadow-card-hover transition-all">
+            <Card 
+              key={venda.id} 
+              className={`bg-gradient-card shadow-card hover:shadow-card-hover transition-all ${
+                VendaAutoTransitionService.getUrgentClass(venda)
+              }`}
+            >
               <CardContent className="p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
                   {/* Informações do Cliente */}
@@ -438,6 +525,11 @@ const AcompanhamentoVendas = () => {
                       >
                         {getStatusLabel(venda.status)}
                       </Badge>
+                      {VendaAutoTransitionService.getUrgentText(venda) && (
+                        <div className="text-red-600 text-sm font-medium">
+                          {VendaAutoTransitionService.getUrgentText(venda)}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Vendedor e Equipe */}
@@ -475,6 +567,31 @@ const AcompanhamentoVendas = () => {
                         <Calendar className="h-4 w-4" />
                         <span>Geração: {formatarData(venda.dataGeracao || venda.dataVenda)}</span>
                       </div>
+                      {/* Plano e Data de Vencimento */}
+                      {venda.planoNome && (
+                        <div className="flex items-center space-x-1">
+                          <CreditCard className="h-4 w-4" />
+                          <span>Plano: {venda.planoNome}</span>
+                        </div>
+                      )}
+                      {venda.diaVencimento && (
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>Vencimento: {venda.diaVencimento}º dia</span>
+                        </div>
+                      )}
+                      {venda.dataInstalacao && (
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>Instalação agendada: {formatarData(venda.dataInstalacao)}</span>
+                        </div>
+                      )}
+                      {venda.dataInstalacaoReal && (
+                        <div className="flex items-center space-x-1">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-green-600">Instalada em: {formatarData(venda.dataInstalacaoReal)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center space-x-1 md:col-span-2">
                         <MapPin className="h-4 w-4" />
                         <span>

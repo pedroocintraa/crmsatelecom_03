@@ -39,29 +39,162 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentos, trigger }) 
     );
   };
 
+  /**
+   * Função simplificada que sempre abre em nova aba
+   */
+  const baixarArquivoSimples = async (url: string, nomeArquivo: string) => {
+    console.log(`📄 Abrindo em nova aba: ${nomeArquivo}`);
+    
+    try {
+      // Abrir diretamente em nova aba
+      const newWindow = window.open(url, '_blank');
+      
+      // Aguardar um pouco para verificar se a aba realmente abriu
+      setTimeout(() => {
+        if (newWindow && !newWindow.closed) {
+          // Sucesso - nova aba aberta
+          const toastElement = document.createElement('div');
+          toastElement.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-size: 14px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-left: 4px solid #16a34a;
+          `;
+          toastElement.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 8px;">✅ ${nomeArquivo}</div>
+            <div style="font-size: 13px; line-height: 1.4;">
+              <strong>Arquivo aberto em nova aba!</strong><br>
+              <strong>Para baixar:</strong><br>
+              • <strong>Mac:</strong> Cmd+S ou botão direito → "Salvar imagem como..."<br>
+              • <strong>Windows:</strong> Ctrl+S ou botão direito → "Salvar imagem como..."
+            </div>
+          `;
+          
+          document.body.appendChild(toastElement);
+          
+          // Remover toast após 10 segundos
+          setTimeout(() => {
+            if (document.body.contains(toastElement)) {
+              document.body.removeChild(toastElement);
+            }
+          }, 10000);
+          
+        } else {
+          // Popup realmente bloqueado
+          const toastElement = document.createElement('div');
+          toastElement.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f59e0b;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-size: 14px;
+            max-width: 350px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          toastElement.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 8px;">🚫 Popup Bloqueado</div>
+            <div style="font-size: 13px;">
+              Permita popups para este site e tente novamente.<br>
+              Arquivo: ${nomeArquivo}
+            </div>
+          `;
+          
+          document.body.appendChild(toastElement);
+          setTimeout(() => {
+            if (document.body.contains(toastElement)) {
+              document.body.removeChild(toastElement);
+            }
+          }, 8000);
+        }
+      }, 100); // Aguarda 100ms para verificar o status da aba
+      
+    } catch (error) {
+      console.error('❌ Erro ao abrir nova aba:', error);
+      
+      // Fallback: copiar URL
+      try {
+        await navigator.clipboard.writeText(url);
+        
+        const toastElement = document.createElement('div');
+        toastElement.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #6366f1;
+          color: white;
+          padding: 16px 20px;
+          border-radius: 8px;
+          z-index: 9999;
+          font-size: 14px;
+          max-width: 350px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        toastElement.innerHTML = `
+          <div style="font-weight: bold; margin-bottom: 8px;">📋 URL Copiada</div>
+          <div style="font-size: 13px;">
+            Cole no navegador para acessar:<br>
+            <strong>${nomeArquivo}</strong>
+          </div>
+        `;
+        
+        document.body.appendChild(toastElement);
+        setTimeout(() => {
+          if (document.body.contains(toastElement)) {
+            document.body.removeChild(toastElement);
+          }
+        }, 6000);
+        
+      } catch (clipboardError) {
+        console.error('❌ Falha ao copiar URL:', clipboardError);
+      }
+    }
+  };
+
   const handleDownload = async (doc: DocumentoAnexado) => {
     try {
-      // Convert base64 to blob
-      const base64Data = doc.conteudo.split(',')[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: doc.tipo });
+      console.log(`📄 Iniciando download: ${doc.nome}`);
 
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nome;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Se é base64, converter para blob e baixar
+      if (doc.conteudo.includes('data:') && doc.conteudo.includes(',')) {
+        const base64Data = doc.conteudo.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: doc.tipo });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.nome || 'documento.jpg';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } 
+      // Se é URL do Firebase Storage, usar download via fetch
+      else if (doc.conteudo.includes('firebasestorage.googleapis.com')) {
+        await baixarArquivoSimples(doc.conteudo, doc.nome || 'documento.jpg');
+      }
     } catch (error) {
-      console.error('Erro ao baixar documento:', error);
+      console.error('❌ Erro no download:', error);
     }
   };
 
@@ -89,9 +222,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentos, trigger }) 
 
       {/* Lista de documentos */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby="documentos-description">
           <DialogHeader>
             <DialogTitle>Documentos Anexados</DialogTitle>
+            <p id="documentos-description" className="text-sm text-muted-foreground">
+              Visualize e baixe os documentos anexados a esta venda. Clique no ícone de olho para visualizar ou no ícone de download para baixar.
+            </p>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -156,7 +292,11 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentos, trigger }) 
 
       {/* Visualizador de imagens */}
       <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0" aria-describedby="viewer-description">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Visualizador de Documento</DialogTitle>
+            <p id="viewer-description">Visualização detalhada do documento selecionado</p>
+          </DialogHeader>
           <div className="relative">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">

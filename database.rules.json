@@ -1,0 +1,34 @@
+{
+  "rules": {
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "vendas": {
+      "$vendaId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "equipes": {
+      "$equipeId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "configuracoes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "test": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "$other": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+} 

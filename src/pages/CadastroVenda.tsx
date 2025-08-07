@@ -15,14 +15,14 @@ import { Loader2, User, MapPin, Settings, CreditCard, Calendar, Camera } from "l
 import DocumentUpload from "@/components/DocumentUpload/DocumentUpload";
 import CameraUpload from "@/components/CameraUpload/CameraUpload";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabaseService } from "@/services/supabaseService";
+
 
 /**
  * Página de cadastro de nova venda
  * Formulário completo com integração ViaCEP e upload de documentos
  */
 const CadastroVenda = () => {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<VendaFormData>();
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<VendaFormData>();
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [documentos, setDocumentos] = useState<DocumentosVenda>({
     documentoClienteFrente: [],
@@ -33,6 +33,7 @@ const CadastroVenda = () => {
   });
   const [planos, setPlanos] = useState<Plano[]>([]);
   const [planoSelecionado, setPlanoSelecionado] = useState<string>("");
+  const [planoNome, setPlanoNome] = useState<string>("");
   const [diaVencimento, setDiaVencimento] = useState<string>("");
   const [isLoadingConfiguracoes, setIsLoadingConfiguracoes] = useState(true);
   const navigate = useNavigate();
@@ -130,46 +131,81 @@ const CadastroVenda = () => {
       return;
     }
 
-    // Converter dados para caixa alta
-    const dadosProcessados = {
-      ...data,
-      cliente: {
-        ...data.cliente,
-        nome: data.cliente.nome.toUpperCase(),
-        endereco: {
-          ...data.cliente.endereco,
-          logradouro: data.cliente.endereco.logradouro.toUpperCase(),
-          bairro: data.cliente.endereco.bairro.toUpperCase(),
-          localidade: data.cliente.endereco.localidade.toUpperCase(),
-          complemento: data.cliente.endereco.complemento ? data.cliente.endereco.complemento.toUpperCase() : ""
-        }
-      },
-      observacoes: data.observacoes ? data.observacoes.toUpperCase() : undefined
-    };
+    // Mostrar loading
+    const loadingToast = toast({
+      title: "Processando...",
+      description: "Cadastrando venda, aguarde...",
+    });
 
     try {
-      // Construir dados da venda para Supabase
-      const vendaData: VendaFormData = {
-        cliente: dadosProcessados.cliente,
-        documentos: documentos,
-        observacoes: dadosProcessados.observacoes,
-        planoId: planoSelecionado,
-        diaVencimento: parseInt(diaVencimento),
-        dataGeracao: new Date().toISOString()
+      // Importar serviço de forma otimizada
+      const { vendasService } = await import('@/services/vendasService');
+      
+      // Usar o usuário já obtido do hook no início do componente
+      if (!usuario) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Processar dados de forma otimizada
+      const dadosProcessados = {
+        ...data,
+        cliente: {
+          ...data.cliente,
+          nome: data.cliente.nome.toUpperCase(),
+          endereco: {
+            ...data.cliente.endereco,
+            logradouro: data.cliente.endereco.logradouro.toUpperCase(),
+            bairro: data.cliente.endereco.bairro.toUpperCase(),
+            localidade: data.cliente.endereco.localidade.toUpperCase(),
+            complemento: data.cliente.endereco.complemento ? data.cliente.endereco.complemento.toUpperCase() : ""
+          }
+        },
+        observacoes: data.observacoes ? data.observacoes.toUpperCase() : undefined,
+        documentos: documentos, // Incluir documentos anexados
+        planoId: planoSelecionado, // Incluir plano selecionado
+        planoNome: planoNome, // Incluir nome do plano
+        diaVencimento: diaVencimento // Incluir dia de vencimento
       };
 
-      // Salvar venda no Supabase
-      await supabaseService.salvarVenda(vendaData);
+      // Criar venda no Firebase
+      const vendaCriada = await vendasService.criarVenda(
+        dadosProcessados,
+        usuario.id,
+        usuario.nome,
+        usuario.equipeId,
+        usuario.nomeEquipe
+      );
+
+      console.log('✅ Venda criada com sucesso:', vendaCriada.id);
       
+      // Fechar toast de loading
+      loadingToast.dismiss();
+      
+      // Toast de sucesso
       toast({
-        title: "Venda cadastrada",
-        description: "Venda cadastrada com sucesso!",
+        title: "Venda cadastrada com sucesso!",
+        description: `Venda ${vendaCriada.id} foi criada e está pendente de auditoria.`,
       });
 
-      // Navegar para página de acompanhamento
-      navigate("/acompanhamento");
+      // Limpar formulário e documentos imediatamente
+      reset();
+      setDocumentos({
+        documentoClienteFrente: [],
+        documentoClienteVerso: [],
+        comprovanteEndereco: [],
+        fachadaCasa: [],
+        selfieCliente: []
+      });
+
+      // Redirecionar imediatamente para a página de acompanhamento de vendas
+      navigate('/acompanhamento');
+      
     } catch (error) {
       console.error("Erro ao cadastrar venda:", error);
+      
+      // Fechar toast de loading
+      loadingToast.dismiss();
+      
       toast({
         variant: "destructive",
         title: "Erro ao cadastrar",
@@ -376,7 +412,14 @@ const CadastroVenda = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="plano">Plano do Cliente *</Label>
-                  <Select value={planoSelecionado} onValueChange={setPlanoSelecionado}>
+                  <Select 
+                    value={planoSelecionado} 
+                    onValueChange={(value) => {
+                      setPlanoSelecionado(value);
+                      const plano = planos.find(p => p.id === value);
+                      setPlanoNome(plano ? plano.nome : "");
+                    }}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um plano" />
                     </SelectTrigger>

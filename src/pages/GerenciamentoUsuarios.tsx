@@ -42,7 +42,25 @@ export default function GerenciamentoUsuarios() {
     try {
       const usuariosAtivos = await usuariosService.obterUsuarios();
       const usuariosInativos = await usuariosService.obterUsuariosInativos();
-      setUsuarios([...usuariosAtivos, ...usuariosInativos]);
+      const todosUsuarios = [...usuariosAtivos, ...usuariosInativos];
+
+      // Buscar nomes das equipes para preencher o campo nomeEquipe
+      try {
+        const equipes = await equipesService.obterEquipes();
+        const equipesMap = new Map(equipes.map(equipe => [equipe.id, equipe.nome]));
+        
+        // Preencher nomeEquipe para cada usuário
+        const usuariosComEquipe = todosUsuarios.map(usuario => ({
+          ...usuario,
+          nomeEquipe: usuario.equipeId ? equipesMap.get(usuario.equipeId) || "Equipe não encontrada" : undefined
+        }));
+        
+        setUsuarios(usuariosComEquipe);
+      } catch (equipeError) {
+        console.error('Erro ao carregar equipes:', equipeError);
+        // Se não conseguir carregar equipes, usar usuários sem nomeEquipe
+        setUsuarios(todosUsuarios);
+      }
     } catch (error) {
       toast({
         title: "Erro",
@@ -75,6 +93,14 @@ export default function GerenciamentoUsuarios() {
 
   const filtrarUsuarios = () => {
     let resultado = usuarios;
+
+    // Filtro específico para SUPERVISOR_EQUIPE - só vê usuários da sua equipe
+    if (usuarioLogado?.funcao === FuncaoUsuario.SUPERVISOR_EQUIPE) {
+      resultado = resultado.filter(usuario => 
+        usuario.equipeId === usuarioLogado.equipeId && 
+        (usuario.funcao === FuncaoUsuario.SUPERVISOR_EQUIPE || usuario.funcao === FuncaoUsuario.VENDEDOR)
+      );
+    }
 
     // Filtro por status
     if (filtroStatus === "ATIVOS") {
@@ -249,6 +275,10 @@ export default function GerenciamentoUsuarios() {
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
       case FuncaoUsuario.SUPERVISOR:
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+      case FuncaoUsuario.BACKOFFICE:
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
+      case FuncaoUsuario.SUPERVISOR_EQUIPE:
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
       case FuncaoUsuario.VENDEDOR:
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
       default:
@@ -262,6 +292,10 @@ export default function GerenciamentoUsuarios() {
         return "Administrador Geral";
       case FuncaoUsuario.SUPERVISOR:
         return "Supervisor";
+      case FuncaoUsuario.BACKOFFICE:
+        return "Backoffice";
+      case FuncaoUsuario.SUPERVISOR_EQUIPE:
+        return "Supervisor de Equipe";
       case FuncaoUsuario.VENDEDOR:
         return "Vendedor";
       default:
@@ -296,12 +330,17 @@ export default function GerenciamentoUsuarios() {
               <p className="text-muted-foreground">
                 Gerencie usuários e suas permissões no sistema
               </p>
+              <p className="text-sm text-blue-600 mt-1">
+                <strong>💡 Dica:</strong> Novos usuários são criados com senha padrão: <code className="bg-blue-100 px-1 rounded">Trocar@123</code>
+              </p>
             </div>
           </div>
-          <Button onClick={handleNovoUsuario} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Usuário
-          </Button>
+          {usuarioLogado?.funcao !== FuncaoUsuario.SUPERVISOR_EQUIPE && (
+            <Button onClick={handleNovoUsuario} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Usuário
+            </Button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -335,6 +374,8 @@ export default function GerenciamentoUsuarios() {
                   <SelectItem value="TODOS">Todas as Funções</SelectItem>
                   <SelectItem value={FuncaoUsuario.ADMINISTRADOR_GERAL}>Administrador Geral</SelectItem>
                   <SelectItem value={FuncaoUsuario.SUPERVISOR}>Supervisor</SelectItem>
+                  <SelectItem value={FuncaoUsuario.BACKOFFICE}>Backoffice</SelectItem>
+                  <SelectItem value={FuncaoUsuario.SUPERVISOR_EQUIPE}>Supervisor de Equipe</SelectItem>
                   <SelectItem value={FuncaoUsuario.VENDEDOR}>Vendedor</SelectItem>
                 </SelectContent>
               </Select>
@@ -370,7 +411,7 @@ export default function GerenciamentoUsuarios() {
                      </div>
                   </div>
                   <div className="flex gap-2">
-                    {usuario.ativo && (
+                    {usuario.ativo && usuarioLogado?.funcao !== FuncaoUsuario.SUPERVISOR_EQUIPE && (
                       <Button
                         variant="ghost"
                         size="icon"

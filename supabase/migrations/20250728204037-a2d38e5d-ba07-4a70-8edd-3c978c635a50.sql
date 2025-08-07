@@ -1,1 +1,0 @@
-DELETE FROM usuarios WHERE id = '0365192c-fc2c-475c-8ea3-e2db1c43c9d4';

@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { MetricCard } from "@/components/Dashboard/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabaseService } from "@/services/supabaseService";
+import DashboardService from "@/services/dashboardService";
+
 import { 
   TrendingUp, 
   Users, 
@@ -27,12 +28,36 @@ const DashboardByRole = () => {
   useEffect(() => {
     const carregarEstatisticas = async () => {
       try {
-        // O RLS no Supabase já aplica as regras de acesso automaticamente
-        const stats = await supabaseService.obterEstatisticasVendas();
+        console.log('🔄 Carregando estatísticas do Firebase...');
+        const stats = await DashboardService.getDashboardStats(
+          usuario?.id, 
+          usuario?.funcao,
+          usuario?.equipeId
+        );
         setEstatisticas(stats);
-        console.log('📊 Estatísticas carregadas (filtradas por RLS):', stats);
+        console.log('📊 Estatísticas carregadas do Firebase:', stats);
       } catch (error) {
         console.error("Erro ao carregar estatísticas:", error);
+        // Em caso de erro, usar dados mockados
+        const stats = {
+          totalVendas: 0,
+          vendasMes: 0,
+          vendasSemana: 0,
+          vendasHoje: 0,
+          vendasGeradas: 0,
+          vendasHabilitadas: 0,
+          vendasPerdidas: 0,
+          taxaConversao: 0,
+          vendasPorBairro: {},
+          vendasPorCidade: {},
+          vendasPorVendedor: {},
+          vendasPorEquipe: {},
+          vendasPendentes: 0,
+          vendasEmAndamento: 0,
+          vendasAuditadas: 0,
+          vendasAguardandoHabilitacao: 0
+        };
+        setEstatisticas(stats);
       }
     };
 
@@ -42,7 +67,7 @@ const DashboardByRole = () => {
   }, [usuario]);
 
   // Calcular rankings apenas para funções que têm acesso aos dados
-  const temAcessoCompleto = usuario?.funcao === "ADMINISTRADOR_GERAL" || usuario?.funcao === "SUPERVISOR";
+  const temAcessoCompleto = usuario?.funcao === "ADMINISTRADOR_GERAL" || usuario?.funcao === "SUPERVISOR" || usuario?.funcao === "BACKOFFICE";
   const temAcessoEquipe = usuario?.funcao === "SUPERVISOR_EQUIPE";
   const isVendedor = usuario?.funcao === "VENDEDOR";
 
@@ -104,7 +129,7 @@ const DashboardByRole = () => {
         />
         
         <MetricCard
-          title="Vendas Aprovadas"
+          title="Vendas Habilitadas"
           value={estatisticas.vendasHabilitadas}
           icon={CheckCircle}
           change={`${estatisticas.taxaConversao.toFixed(1)}% de conversão`}
@@ -231,7 +256,7 @@ const DashboardByRole = () => {
           <Card className="bg-gradient-card shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Building className="h-5 w-5 text-secondary" />
+                <Building className="h-5 w-5 text-blue-600" />
                 <span>Top Cidades {temAcessoEquipe ? "(da sua equipe)" : ""}</span>
               </CardTitle>
             </CardHeader>
@@ -241,12 +266,12 @@ const DashboardByRole = () => {
                   topCidades.map(([cidade, quantidade], index) => (
                     <div key={cidade} className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="bg-secondary/10 text-secondary rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">
+                        <div className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">
                           {index + 1}
                         </div>
                         <span className="font-medium text-foreground">{cidade}</span>
                       </div>
-                       <span className="text-sm font-semibold text-secondary">
+                       <span className="text-sm font-semibold text-blue-600">
                          {quantidade as number} vendas
                        </span>
                     </div>
@@ -274,7 +299,7 @@ const DashboardByRole = () => {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-muted-foreground">
+              <div className="text-2xl font-bold text-gray-600">
                 {estatisticas.vendasPendentes}
               </div>
               <div className="text-sm text-muted-foreground">Pendentes</div>
@@ -286,7 +311,7 @@ const DashboardByRole = () => {
               <div className="text-sm text-muted-foreground">Em Andamento</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-secondary">
+              <div className="text-2xl font-bold text-amber-600">
                 {estatisticas.vendasAuditadas}
               </div>
               <div className="text-sm text-muted-foreground">Auditadas</div>
@@ -298,7 +323,7 @@ const DashboardByRole = () => {
               <div className="text-sm text-muted-foreground">Geradas</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-accent">
+              <div className="text-2xl font-bold text-purple-600">
                 {estatisticas.vendasAguardandoHabilitacao}
               </div>
               <div className="text-sm text-muted-foreground">Aguard. Hab.</div>

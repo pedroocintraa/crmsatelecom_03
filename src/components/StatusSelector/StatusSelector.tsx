@@ -30,7 +30,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ venda, onStatusC
 
   const statusOptions = [
     { value: "pendente", label: "Pendente" },
-    { value: "em_andamento", label: "Em Andamento" },
+    { value: "em_atendimento", label: "Em Atendimento" },
     { value: "auditada", label: "Auditada" },
     { value: "gerada", label: "Gerada" },
     { value: "aguardando_habilitacao", label: "Aguardando Habilitação" },
@@ -43,17 +43,19 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ venda, onStatusC
     setShowConfirmDialog(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedStatus) return;
 
     const extraData: { dataInstalacao?: string; motivoPerda?: string } = {};
     
-    if (selectedStatus === "aguardando_habilitacao" || selectedStatus === "habilitada") {
+    if (selectedStatus === "auditada") {
       if (!dataInstalacao) {
-        alert("Data de instalação é obrigatória para este status");
+        alert("Data de instalação é obrigatória para o status 'Auditada'");
         return;
       }
+      // Salvar data no formato simples YYYY-MM-DD
       extraData.dataInstalacao = dataInstalacao;
+      console.log('🔍 StatusSelector - dataInstalacao salva:', dataInstalacao);
     }
     
     if (selectedStatus === "perdida") {
@@ -122,7 +124,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ venda, onStatusC
           </DialogHeader>
           
           <div className="space-y-4">
-            {(selectedStatus === "aguardando_habilitacao" || selectedStatus === "habilitada") && (
+            {selectedStatus === "auditada" && (
               <div>
                 <Label htmlFor="dataInstalacao">Data da Instalação *</Label>
                 <Input

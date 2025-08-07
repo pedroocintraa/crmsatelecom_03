@@ -53,9 +53,9 @@ export function UserForm({ usuario, onSubmit, onCancel }: UserFormProps) {
 
     switch (usuarioLogado.funcao) {
       case FuncaoUsuario.ADMINISTRADOR_GERAL:
-        return [FuncaoUsuario.ADMINISTRADOR_GERAL, FuncaoUsuario.SUPERVISOR, FuncaoUsuario.SUPERVISOR_EQUIPE, FuncaoUsuario.VENDEDOR];
+        return [FuncaoUsuario.ADMINISTRADOR_GERAL, FuncaoUsuario.SUPERVISOR, FuncaoUsuario.BACKOFFICE, FuncaoUsuario.SUPERVISOR_EQUIPE, FuncaoUsuario.VENDEDOR];
       case FuncaoUsuario.SUPERVISOR:
-        return [FuncaoUsuario.SUPERVISOR_EQUIPE, FuncaoUsuario.VENDEDOR];
+        return [FuncaoUsuario.BACKOFFICE, FuncaoUsuario.SUPERVISOR_EQUIPE, FuncaoUsuario.VENDEDOR];
       case FuncaoUsuario.SUPERVISOR_EQUIPE:
         return [FuncaoUsuario.VENDEDOR];
       default:
@@ -216,6 +216,8 @@ export function UserForm({ usuario, onSubmit, onCancel }: UserFormProps) {
         return "Administrador Geral";
       case FuncaoUsuario.SUPERVISOR:
         return "Supervisor";
+      case FuncaoUsuario.BACKOFFICE:
+        return "Backoffice";
       case FuncaoUsuario.SUPERVISOR_EQUIPE:
         return "Supervisor de Equipe";
       case FuncaoUsuario.VENDEDOR:
@@ -232,6 +234,11 @@ export function UserForm({ usuario, onSubmit, onCancel }: UserFormProps) {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>{usuario ? "Editar Usuário" : "Novo Usuário"}</CardTitle>
+        {!usuario && (
+          <p className="text-sm text-muted-foreground">
+            <strong>Senha padrão:</strong> Trocar@123 - O usuário poderá alterar após o primeiro login.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">

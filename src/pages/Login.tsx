@@ -9,6 +9,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { MigrationPanel } from '@/components/MigrationPanel';
 import { AuthDebugPanel } from '@/components/AuthDebugPanel';
+import SetupInitialUsers from '@/components/SetupInitialUsers';
+import FirebaseConnectionTest from '@/components/FirebaseConnectionTest';
+import MigrateCurrentUser from '@/components/MigrateCurrentUser';
+import AutoCreateUserData from '@/components/AutoCreateUserData';
+import createSampleVendas from '@/utils/createSampleData';
+import { TransformarAdmin } from '@/components/TransformarAdmin';
+import { SyncUserData } from '@/components/SyncUserData';
 // import saTelecomLogo from '@/assets/sa-telecom-logo.png';
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,6 +24,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showMigrationPanel, setShowMigrationPanel] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showSetupUsers, setShowSetupUsers] = useState(false);
+  const [showConnectionTest, setShowConnectionTest] = useState(false);
+  const [showMigrateUser, setShowMigrateUser] = useState(false);
+  const [showAutoCreate, setShowAutoCreate] = useState(false);
+  const [showSampleData, setShowSampleData] = useState(false);
+  const [showTransformAdmin, setShowTransformAdmin] = useState(false);
+  const [showSyncUserData, setShowSyncUserData] = useState(false);
   const {
     login,
     isAuthenticated,
@@ -72,6 +86,50 @@ export default function Login() {
         {/* Painel de Debug de Autenticação */}
         {showDebugPanel && <AuthDebugPanel />}
         
+        {/* Painel de Configuração de Usuários Iniciais */}
+        {showSetupUsers && <SetupInitialUsers />}
+        
+        {/* Painel de Teste de Conexão Firebase */}
+        {showConnectionTest && <FirebaseConnectionTest />}
+        
+        {/* Painel de Migração de Usuário Atual */}
+        {showMigrateUser && <MigrateCurrentUser />}
+        
+        {/* Painel de Criação Automática de Dados */}
+        {showAutoCreate && <AutoCreateUserData />}
+        
+        {/* Painel de Dados de Exemplo */}
+        {showSampleData && (
+          <Card className="w-full max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                📊 Dados de Exemplo
+              </CardTitle>
+              <CardDescription>
+                Cria vendas de exemplo para testar o dashboard
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={async () => {
+                  const success = await createSampleVendas();
+                  if (success) {
+                    alert('✅ Dados de exemplo criados! Agora você pode testar o dashboard.');
+                  } else {
+                    alert('❌ Erro ao criar dados de exemplo.');
+                  }
+                }}
+                className="w-full"
+              >
+                Criar Vendas de Exemplo
+              </Button>
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Nota:</strong> Isso criará 5 vendas de exemplo no Realtime Database.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         <Card className="w-full max-w-md mx-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
@@ -85,7 +143,79 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Botões de Debug e Migração */}
-            {!showMigrationPanel && !showDebugPanel}
+            {!showMigrationPanel && !showDebugPanel && !showSetupUsers && !showConnectionTest && !showMigrateUser && !showAutoCreate && !showSampleData && !showTransformAdmin && !showSyncUserData && (
+              <div className="flex gap-2 justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSetupUsers(true)}
+                  className="text-xs"
+                >
+                  Configurar Usuários
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowConnectionTest(true)}
+                  className="text-xs"
+                >
+                  Testar Firebase
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMigrateUser(true)}
+                  className="text-xs"
+                >
+                  Migrar Usuário
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAutoCreate(true)}
+                  className="text-xs"
+                >
+                  Criar Dados
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSampleData(true)}
+                  className="text-xs"
+                >
+                  Dados Exemplo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTransformAdmin(true)}
+                  className="text-xs"
+                >
+                  Transformar Admin
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSyncUserData(true)}
+                  className="text-xs"
+                >
+                  Sincronizar Dados
+                </Button>
+              </div>
+            )}
+
+            {/* Painel de Transformação em Administrador */}
+            {showTransformAdmin && <TransformarAdmin />}
+
+            {/* Painel de Sincronização de Dados */}
+            {showSyncUserData && <SyncUserData />}
 
             {error && <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
