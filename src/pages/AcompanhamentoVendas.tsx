@@ -27,7 +27,8 @@ import {
   User,
   Users,
   CreditCard,
-  CheckCircle
+  CheckCircle,
+  X
 } from "lucide-react";
 import { StatusManager } from "@/components/StatusManager/StatusManager";
 import { VendaAutoTransitionService } from "@/services/vendaAutoTransitionService";
@@ -624,6 +625,14 @@ const AcompanhamentoVendas = () => {
                         <div className="flex items-center space-x-1">
                           <CheckCircle className="h-4 w-4 text-green-600" />
                           <span className="text-green-600">Instalada em: {formatarData(venda.dataInstalacaoReal)}</span>
+                        </div>
+                      )}
+                      {venda.status === "perdida" && venda.motivoPerda && (
+                        <div className="flex items-start space-x-1 md:col-span-2">
+                          <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                          <span className="text-red-600 text-sm">
+                            <strong>Motivo da perda:</strong> {venda.motivoPerda}
+                          </span>
                         </div>
                       )}
                       <div className="flex items-center space-x-1 md:col-span-2">

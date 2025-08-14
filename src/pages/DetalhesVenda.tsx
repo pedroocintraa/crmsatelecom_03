@@ -1052,6 +1052,19 @@ const DetalhesVenda = () => {
                 </Badge>
               </div>
               
+              {/* Motivo da Perda */}
+              {venda.status === "perdida" && venda.motivoPerda && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-red-800">Motivo da Perda:</p>
+                      <p className="text-sm text-red-700 mt-1">{venda.motivoPerda}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Status Selector para Admin e Supervisor */}
               {usuario?.funcao && ['ADMINISTRADOR_GERAL', 'SUPERVISOR'].includes(usuario.funcao) && (
                 <div className="space-y-2">
