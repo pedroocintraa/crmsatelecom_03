@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { Venda } from "@/types/venda";
+import { Plano } from "@/types/configuracao";
 import { format, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn, maskCPF, maskPhone, formatarDataBrasil } from "@/lib/utils";
@@ -40,22 +41,33 @@ const AcompanhamentoVendas = () => {
   const navigate = useNavigate();
   const { usuario } = useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
+  const [planos, setPlanos] = useState<Plano[]>([]);
   const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<Venda["status"] | "todas">("todas");
   const [filtroVendedor, setFiltroVendedor] = useState<string>("todos");
   const [filtroEquipe, setFiltroEquipe] = useState<string>("todas");
+  const [filtroPlano, setFiltroPlano] = useState<string>("todos");
   const [dataInicio, setDataInicio] = useState<Date | undefined>();
   const [dataFim, setDataFim] = useState<Date | undefined>();
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Carregar vendas ao montar o componente
+  // Carregar vendas e planos ao montar o componente
   useEffect(() => {
-    const carregarVendas = async () => {
-      console.log('🔍 Carregando vendas...', { usuario: usuario?.funcao });
+    const carregarDados = async () => {
+      console.log('🔍 Carregando dados...', { usuario: usuario?.funcao });
       
       try {
-        const { vendasService } = await import('@/services/vendasService');
+        // Carregar vendas e planos em paralelo
+        const [vendasService, configuracaoService] = await Promise.all([
+          import('@/services/vendasService'),
+          import('@/services/configuracaoService')
+        ]);
+        
+        // Carregar planos
+        const planosCarregados = await configuracaoService.configuracaoService.obterPlanos();
+        console.log('🔍 Planos carregados:', planosCarregados.length);
+        setPlanos(planosCarregados);
         
         let vendasCarregadas: Venda[] = [];
         
@@ -65,12 +77,12 @@ const AcompanhamentoVendas = () => {
         if (funcaoUsuario === 'ADMINISTRADOR_GERAL' || funcaoUsuario === 'SUPERVISOR' || funcaoUsuario === 'BACKOFFICE') {
           // Administrador Geral, Supervisor e Backoffice veem todas as vendas
           console.log('🔍 Carregando todas as vendas para:', funcaoUsuario);
-          vendasCarregadas = await vendasService.obterVendas();
+          vendasCarregadas = await vendasService.vendasService.obterVendas();
         } else if (funcaoUsuario === 'SUPERVISOR_EQUIPE') {
           // Supervisor de equipe vê apenas vendas da sua equipe
           if (usuario.equipeId) {
             console.log('🔍 Carregando vendas da equipe:', usuario.equipeId, 'para supervisor de equipe');
-            vendasCarregadas = await vendasService.obterVendasPorEquipe(usuario.equipeId);
+            vendasCarregadas = await vendasService.vendasService.obterVendasPorEquipe(usuario.equipeId);
           } else {
             console.warn('⚠️ Supervisor de equipe sem equipeId definido');
             vendasCarregadas = [];
@@ -78,7 +90,7 @@ const AcompanhamentoVendas = () => {
         } else if (funcaoUsuario === 'VENDEDOR') {
           // Vendedor vê apenas suas próprias vendas
           console.log('🔍 Carregando vendas do vendedor:', usuario.id);
-          vendasCarregadas = await vendasService.obterVendasPorVendedor(usuario.id);
+          vendasCarregadas = await vendasService.vendasService.obterVendasPorVendedor(usuario.id);
         } else {
           console.warn('⚠️ Função de usuário não reconhecida:', funcaoUsuario);
           vendasCarregadas = [];
@@ -87,7 +99,7 @@ const AcompanhamentoVendas = () => {
         console.log('🔍 Vendas carregadas:', vendasCarregadas.length);
         setVendas(vendasCarregadas);
       } catch (error) {
-        console.error("❌ Erro ao carregar vendas:", error);
+        console.error("❌ Erro ao carregar dados:", error);
         
         // Log detalhado do erro
         if (error instanceof Error) {
@@ -100,25 +112,25 @@ const AcompanhamentoVendas = () => {
         
         toast({
           variant: "destructive",
-          title: "Erro ao carregar vendas",
-          description: "Não foi possível carregar as vendas.",
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar as vendas e planos.",
         });
       } finally {
-        console.log('🔍 Finalizando carregamento de vendas');
+        console.log('🔍 Finalizando carregamento de dados');
         setLoading(false);
       }
     };
 
     if (usuario) {
       console.log('🔍 Usuário encontrado, iniciando carregamento');
-      carregarVendas();
+      carregarDados();
     } else {
       console.log('🔍 Usuário não encontrado, aguardando...');
     }
   }, [toast, usuario]);
 
   /**
-   * Filtra vendas baseado no texto, status, vendedor, equipe e período de datas
+   * Filtra vendas baseado no texto, status, vendedor, equipe, plano e período de datas
    * Ordena por data mais recente primeiro
    */
   const vendasFiltradas = useMemo(() => {
@@ -136,6 +148,11 @@ const AcompanhamentoVendas = () => {
       const matchEquipe = filtroEquipe === "todas" || 
         (venda.equipeNome && venda.equipeNome.toLowerCase().includes(filtroEquipe.toLowerCase()));
 
+      // Filtro por plano
+      const matchPlano = filtroPlano === "todos" || 
+        venda.planoId === filtroPlano ||
+        (venda.planoNome && venda.planoNome.toLowerCase().includes(filtroPlano.toLowerCase()));
+
       // Filtro por período de datas (usando dataGeracao ou dataVenda como fallback)
       let matchData = true;
       if (dataInicio || dataFim) {
@@ -150,7 +167,7 @@ const AcompanhamentoVendas = () => {
         }
       }
 
-      return matchTexto && matchStatus && matchVendedor && matchEquipe && matchData;
+      return matchTexto && matchStatus && matchVendedor && matchEquipe && matchPlano && matchData;
     });
 
     // Ordenar por data mais recente primeiro
@@ -159,7 +176,7 @@ const AcompanhamentoVendas = () => {
       const dataB = new Date(b.dataGeracao || b.dataVenda);
       return dataB.getTime() - dataA.getTime(); // Mais recente primeiro
     });
-  }, [vendas, filtroTexto, filtroStatus, filtroVendedor, filtroEquipe, dataInicio, dataFim]);
+  }, [vendas, filtroTexto, filtroStatus, filtroVendedor, filtroEquipe, filtroPlano, dataInicio, dataFim]);
 
   // Listas únicas para filtros
   const vendedoresUnicos = useMemo(() => {
@@ -313,7 +330,7 @@ const AcompanhamentoVendas = () => {
             </div>
             
             {/* Filtros por selects */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Vendedor</label>
                 <Select value={filtroVendedor} onValueChange={setFiltroVendedor}>
@@ -342,6 +359,23 @@ const AcompanhamentoVendas = () => {
                     {equipesUnicas.map((equipe) => (
                       <SelectItem key={equipe} value={equipe}>
                         {equipe}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Plano</label>
+                <Select value={filtroPlano} onValueChange={setFiltroPlano}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os planos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os planos</SelectItem>
+                    {planos.filter(plano => plano.ativo).map((plano) => (
+                      <SelectItem key={plano.id} value={plano.id}>
+                        {plano.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -638,7 +672,7 @@ const AcompanhamentoVendas = () => {
                 Nenhuma venda encontrada
               </h3>
               <p className="text-muted-foreground">
-              {filtroTexto || filtroStatus !== "todas" || filtroVendedor !== "todos" || filtroEquipe !== "todas" || dataInicio || dataFim
+              {filtroTexto || filtroStatus !== "todas" || filtroVendedor !== "todos" || filtroEquipe !== "todas" || filtroPlano !== "todos" || dataInicio || dataFim
                 ? "Tente ajustar os filtros ou cadastrar uma nova venda"
                 : "Comece cadastrando sua primeira venda"}
               </p>
