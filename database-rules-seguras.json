@@ -3,7 +3,7 @@
     "usuarios": {
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && auth.uid == $uid"
       }
     },
     "vendas": {
@@ -31,10 +31,6 @@
           ".write": "auth != null && !data.exists()"
         }
       }
-    },
-    "test": {
-      ".read": "auth != null",
-      ".write": "auth != null"
     }
   }
 }

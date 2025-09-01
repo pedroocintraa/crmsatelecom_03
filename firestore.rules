@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para coleção de usuários
+    match /usuarios/{userId} {
+      // Usuário pode ler e editar apenas seus próprios dados
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Administradores podem ler todos os usuários
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL';
+      
+      // Administradores podem criar/editar usuários
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL';
+    }
+    
+    // Regras para coleção de vendas
+    match /vendas/{vendaId} {
+      // Usuários autenticados podem ler vendas
+      allow read: if request.auth != null;
+      
+      // Apenas o vendedor da venda ou admin pode editar
+      allow write: if request.auth != null && (
+        request.auth.uid == resource.data.vendedorId ||
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL' ||
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'GERENTE'
+      );
+      
+      // Criar nova venda
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.vendedorId;
+    }
+    
+    // Regras para coleção de equipes
+    match /equipes/{equipeId} {
+      // Todos podem ler equipes
+      allow read: if request.auth != null;
+      
+      // Apenas administradores e gerentes podem gerenciar equipes
+      allow write: if request.auth != null && (
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL' ||
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'GERENTE'
+      );
+    }
+    
+    // Regras para configurações
+    match /configuracoes/{configId} {
+      // Todos podem ler configurações
+      allow read: if request.auth != null;
+      
+      // Apenas administradores podem alterar configurações
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL';
+    }
+    
+    // Regras para planos
+    match /planos/{planoId} {
+      // Todos podem ler planos
+      allow read: if request.auth != null;
+      
+      // Apenas administradores podem gerenciar planos
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.funcao == 'ADMINISTRADOR_GERAL';
+    }
+    
+    // Bloquear acesso a outras coleções por padrão
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
