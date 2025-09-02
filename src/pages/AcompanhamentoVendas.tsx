@@ -12,6 +12,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { Venda } from "@/types/venda";
 import { Plano } from "@/types/configuracao";
+import { Usuario } from "@/types/usuario";
 import { format, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn, maskCPF, maskPhone, formatarDataBrasil } from "@/lib/utils";
@@ -32,6 +33,7 @@ import {
 } from "lucide-react";
 import { StatusManager } from "@/components/StatusManager/StatusManager";
 import { VendaAutoTransitionService } from "@/services/vendaAutoTransitionService";
+import RelatorioExcelButton from "@/components/RelatorioExcelButton";
 
 
 /**
@@ -43,6 +45,7 @@ const AcompanhamentoVendas = () => {
   const { usuario } = useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [planos, setPlanos] = useState<Plano[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<Venda["status"] | "todas">("todas");
   const [filtroVendedor, setFiltroVendedor] = useState<string>("todos");
@@ -59,16 +62,22 @@ const AcompanhamentoVendas = () => {
       console.log('🔍 Carregando dados...', { usuario: usuario?.funcao });
       
       try {
-        // Carregar vendas e planos em paralelo
-        const [vendasService, configuracaoService] = await Promise.all([
+        // Carregar vendas, planos e usuários em paralelo
+        const [vendasService, configuracaoService, usuariosService] = await Promise.all([
           import('@/services/vendasService'),
-          import('@/services/configuracaoService')
+          import('@/services/configuracaoService'),
+          import('@/services/usuariosService')
         ]);
         
         // Carregar planos
         const planosCarregados = await configuracaoService.configuracaoService.obterPlanos();
         console.log('🔍 Planos carregados:', planosCarregados.length);
         setPlanos(planosCarregados);
+        
+        // Carregar usuários
+        const usuariosCarregados = await usuariosService.usuariosService.obterUsuarios();
+        console.log('🔍 Usuários carregados:', usuariosCarregados.length);
+        setUsuarios(usuariosCarregados);
         
         let vendasCarregadas: Venda[] = [];
         
@@ -300,11 +309,21 @@ const AcompanhamentoVendas = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Vendas</h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe o status das suas vendas
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Vendas</h1>
+          <p className="text-muted-foreground">
+            Gerencie e acompanhe o status das suas vendas
+          </p>
+        </div>
+        
+        {/* Botão de Relatório Excel */}
+        <RelatorioExcelButton 
+          vendas={vendasFiltradas} 
+          usuarios={usuarios}
+          planos={planos}
+          className="mt-1"
+        />
       </div>
 
       {/* Filtros */}
